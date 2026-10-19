@@ -92,8 +92,42 @@ namespace GxDracula
         }
     }
 
+    // Grid com DrawFilter próprio da IDE (Select Objects, Team Development): o nosso fica por fora — some com a borda
+    // clara das linhas e repassa o resto ao filtro original.
+    public sealed class ChainDrawFilter : IUIElementDrawFilter
+    {
+        public readonly IUIElementDrawFilter Inner;
+        public ChainDrawFilter(IUIElementDrawFilter inner) { Inner = inner; }
+
+        public DrawPhase GetPhasesToFilter(ref UIElementDrawParams p)
+        {
+            DrawPhase mine = DraculaDrawFilter.Instance.GetPhasesToFilter(ref p);
+            return mine | (Inner == null ? DrawPhase.None : Inner.GetPhasesToFilter(ref p));
+        }
+
+        public bool DrawElement(DrawPhase phase, ref UIElementDrawParams p)
+        {
+            if (phase == DrawPhase.BeforeDrawBorders && DraculaDrawFilter.Instance.GetPhasesToFilter(ref p) == DrawPhase.BeforeDrawBorders)
+                return DraculaDrawFilter.Instance.DrawElement(phase, ref p);
+            if (Inner != null && (Inner.GetPhasesToFilter(ref p) & phase) != 0) return Inner.DrawElement(phase, ref p);
+            return (DraculaDrawFilter.Instance.GetPhasesToFilter(ref p) & phase) != 0 && DraculaDrawFilter.Instance.DrawElement(phase, ref p);
+        }
+    }
+
     public static partial class Theme
     {
+        // Garante o filtro da versão atual do tema na grid, encadeando o da IDE; desembrulha filtros de versões antigas
+        // (recarga a quente = outro assembly) pelo campo Inner.
+        private static void EnsureGridFilter(object grid)
+        {
+            object df = Get(grid, "DrawFilter");
+            if (df is DraculaDrawFilter || df is ChainDrawFilter) return;
+            while (df != null && df.GetType().FullName.StartsWith("GxDracula."))
+                df = df.GetType().GetField("Inner") == null ? null : df.GetType().GetField("Inner").GetValue(df);
+            try { TrySet(grid, "DrawFilter", df == null ? (object)DraculaDrawFilter.Instance : new ChainDrawFilter((IUIElementDrawFilter)df)); }
+            catch (Exception ex) { Log("chainfilter", ex); }
+        }
+
         // Isolado num método próprio: só toca nos tipos do Infragistics quando há um componente Infragistics.
         private static void SetDrawFilter(object target)
         {

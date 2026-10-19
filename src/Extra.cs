@@ -57,7 +57,8 @@ namespace GxDracula
                     HookFullRepaint(k);
                     // Toda grid (não só as de tipo Artech) recebe o filtro atual: sem ele a borda a cada 2 linhas aparece.
                     object df = Get(k, "DrawFilter");
-                    if (df == null || !(df is DraculaDrawFilter) && df.GetType().FullName == typeof(DraculaDrawFilter).FullName) { SetDrawFilter(k); k.Invalidate(); }
+                    EnsureGridFilter(k);
+                    if (Get(k, "DrawFilter") != df) k.Invalidate(true);
                 }
                 // Editores criados antes do reload (combo Version da History) ficam sem o filtro das setas.
                 if (InheritsFrom(k, "Infragistics.Win.UltraWinEditors") && Get(k, "DrawFilter") == null) { SetDrawFilter(k); k.Invalidate(); }
@@ -163,11 +164,9 @@ namespace GxDracula
             IgApp(Get(ov, "RowSelectorAppearance"), Dracula.Background, Dracula.Foreground);
             TrySetEnumByName(ov, "RowSelectors", "False");
             IgApp(Get(ov, "MaskLiteralsAppearance"), Dracula.Background, Dracula.Foreground);
-            object df = Get(k, "DrawFilter");
             // Filtro de uma versão anterior do tema (recarga a quente = outro assembly): troca pelo atual,
             // senão a grid fica com o desenho antigo (a borda a cada 2 linhas "voltava").
-            if (df == null || !(df is DraculaDrawFilter) && df.GetType().FullName == typeof(DraculaDrawFilter).FullName) SetDrawFilter(k);
-            else if (!(df is DraculaDrawFilter)) Log("grid " + k.Name + " já tem DrawFilter " + df.GetType().FullName, null);
+            EnsureGridFilter(k);
             TrySet(ov, "DefaultRowHeight", 26);
             System.Collections.IEnumerable bands = Get(dl, "Bands") as System.Collections.IEnumerable;
             if (bands != null)
@@ -265,6 +264,22 @@ namespace GxDracula
                 if (ei == null) continue;
                 try { ei.AddEventHandler(k, Delegate.CreateDelegate(ei.EventHandlerType, full.Target, full.Method)); }
                 catch (Exception ex) { Log("repaint " + ev, ex); }
+            }
+            // Linhas recarregadas (filtro Pattern da Select Objects) voltam com a borda #C0C0C0 até o próximo sweep (~7 s):
+            // corrige assim que a grid inicializa as linhas, uma vez por rajada de InitializeRow.
+            bool queued = false;
+            EventHandler fix = delegate
+            {
+                if (queued || !k.IsHandleCreated || k.IsDisposed) return;
+                queued = true;
+                k.BeginInvoke((MethodInvoker)delegate { queued = false; try { EnsureGridFilter(k); FixRowAppearances(k); } catch (Exception ex) { Log("fixrows", ex); } });
+            };
+            foreach (string ev in new[] { "InitializeLayout", "InitializeRow", "AfterRowsDeleted" })
+            {
+                EventInfo ei = k.GetType().GetEvent(ev);
+                if (ei == null) continue;
+                try { ei.AddEventHandler(k, Delegate.CreateDelegate(ei.EventHandlerType, fix.Target, fix.Method)); }
+                catch (Exception ex) { Log("fixrows " + ev, ex); }
             }
             full(k, EventArgs.Empty);
         }
