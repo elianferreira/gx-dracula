@@ -661,6 +661,7 @@ namespace GxDracula
                 "tr:hover td{background:#44475A!important}" +
                 // O fundo vai só na célula: o conteúdo dela fica transparente (senão vira uma caixa escura no hover).
                 "td *,th *{background-color:transparent!important}" +
+                "nav,ul:first-of-type{margin-bottom:24px!important}table{margin-bottom:36px!important}" +
                 // Hover dos menus: o site troca fundo/borda no :hover; fica um realce Dracula estável.
                 "nav a,nav li,ul li,ul li a{transition:none!important;border-color:transparent!important}" +
                 "nav a:hover,ul li a:hover{background-color:#44475A!important;color:#BD93F9!important;border-radius:6px}" +
