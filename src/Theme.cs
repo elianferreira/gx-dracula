@@ -91,11 +91,47 @@ namespace GxDracula
             // Janela nova (Select Objects, diálogos) aparecia branca até o próximo Tick: tema no WM_SHOWWINDOW, antes de pintar.
             showHookProc = ShowHook;
             showHook = SetWindowsHookEx(4 /* WH_CALLWNDPROC */, showHookProc, IntPtr.Zero, GetCurrentThreadId());
+            msgHookProc = MsgHook;
+            msgHook = SetWindowsHookEx(3 /* WH_GETMESSAGE */, msgHookProc, IntPtr.Zero, GetCurrentThreadId());
+        }
+
+        // Diagnóstico do flash: %TEMP%\GxDracula.trace liga, por 3 s após cada show, o log das mensagens de pintura.
+        private static HookProc msgHookProc;
+        private static IntPtr msgHook;
+        private static readonly System.Diagnostics.Stopwatch traceClock = System.Diagnostics.Stopwatch.StartNew();
+        private static long traceUntil = -1, traceZero;
+        [StructLayout(LayoutKind.Sequential)] private struct MSG { public IntPtr hwnd; public int message; public IntPtr wParam, lParam; public int time, x, y; }
+
+        private static void Trace(string what, IntPtr hwnd)
+        {
+            if (traceClock.ElapsedMilliseconds > traceUntil) return;
+            Control c = Control.FromHandle(hwnd);
+            string who = c == null ? "hwnd " + hwnd : c.GetType().Name + " '" + c.Name + "'";
+            string ap = "";
+            object dl = c == null ? null : Get(c, "DisplayLayout");
+            if (dl != null) { object a = Get(dl, "Appearance"); ap = " ap=" + (a == null ? "?" : Get(a, "BackColor")); }
+            Log("trace +" + (traceClock.ElapsedMilliseconds - traceZero) + "ms " + what + " " + who + ap, null);
+        }
+
+        private static IntPtr MsgHook(int code, IntPtr wParam, IntPtr lParam)
+        {
+            if (code >= 0 && traceUntil >= 0)
+            {
+                try
+                {
+                    MSG m = (MSG)Marshal.PtrToStructure(lParam, typeof(MSG));
+                    if (m.message == 0x000F) Trace("WM_PAINT", m.hwnd);
+                }
+                catch { }
+            }
+            return CallNextHookEx(msgHook, code, wParam, lParam);
         }
 
         private delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
         private static HookProc showHookProc;
         private static IntPtr showHook;
+        private static readonly List<Form> pending = new List<Form>();
+        private static bool Cloak(IntPtr h, bool on) { int v = on ? 1 : 0; return DwmSetWindowAttribute(h, 13 /* DWMWA_CLOAK */, ref v, 4) == 0; }
         [DllImport("user32.dll")] private static extern IntPtr SetWindowsHookEx(int id, HookProc fn, IntPtr mod, int thread);
         [DllImport("user32.dll")] private static extern bool UnhookWindowsHookEx(IntPtr h);
         [DllImport("user32.dll")] private static extern IntPtr CallNextHookEx(IntPtr h, int code, IntPtr wParam, IntPtr lParam);
@@ -109,17 +145,45 @@ namespace GxDracula
                 try
                 {
                     CWPSTRUCT m = (CWPSTRUCT)Marshal.PtrToStructure(lParam, typeof(CWPSTRUCT));
-                    if (m.message == 0x0018 /* WM_SHOWWINDOW */ && m.wParam != IntPtr.Zero)
+                    if (traceUntil >= 0)
                     {
-                        Form f = Control.FromHandle(m.hwnd) as Form;
-                        if (f != null)
+                        if (m.message == 0x0014) Trace("WM_ERASEBKGND", m.hwnd);
+                        else if (m.message == 0x0085) Trace("WM_NCPAINT", m.hwnd);
+                        else if (m.message == 0x0018) Trace("WM_SHOWWINDOW " + m.wParam, m.hwnd);
+                    }
+                    // Medido: a Select Objects aparece sem WM_SHOWWINDOW (vem por SetWindowPos com SWP_SHOWWINDOW).
+                    bool showing = m.message == 0x0018 /* WM_SHOWWINDOW */ && m.wParam != IntPtr.Zero;
+                    if (m.message == 0x0046 /* WM_WINDOWPOSCHANGING */ && m.lParam != IntPtr.Zero
+                        && (Marshal.ReadInt32(m.lParam, IntPtr.Size * 2 + 16) & 0x0040 /* SWP_SHOWWINDOW */) != 0) showing = true;
+                    Form f = showing ? Control.FromHandle(m.hwnd) as Form : null;
+                    if (f != null && !seen.Contains(f) && !pending.Contains(f))
+                    {
+                        // Medido (trace + quadros da Select Objects): a IDE repõe a Appearance da grid em White ~30 ms depois do
+                        // show, nada pinta até ~200 ms (Load ocupa a thread) e o Apply leva ~400 ms. Cor aplicada no show não
+                        // sobrevive; a janela fica oculta pelo DWM (cloak, continua pintando) até o tema estar aplicado e pintado.
+                        Form ff = f;
+                        pending.Add(ff);
+                        if (File.Exists(Path.Combine(Path.GetTempPath(), "GxDracula.trace")))
+                        { traceZero = traceClock.ElapsedMilliseconds; traceUntil = traceZero + 3000; }
+                        bool cloaked = ff.TopLevel && !ff.IsMdiContainer && Cloak(ff.Handle, true);
+                        Timer once = new Timer();
+                        once.Interval = 150;
+                        once.Tick += delegate
                         {
-                            // Medido: tema aplicado DENTRO do WM_SHOWWINDOW (e reaplicado a cada abertura) deixava a grid da
-                            // Select Objects branca. Mensagem postada roda logo depois do show e antes do WM_PAINT (prioridade
-                            // baixa): mesmo efeito do Tick, sem esperar 700 ms.
-                            Form ff = f;
-                            if (!seen.Contains(ff)) ff.BeginInvoke((MethodInvoker)delegate { Apply(ff); AttachThumbs(ff); });
-                        }
+                            once.Stop(); once.Dispose();
+                            try
+                            {
+                                if (running && !ff.IsDisposed)
+                                {
+                                    Trace("apply inicio", ff.Handle);
+                                    Apply(ff); AttachThumbs(ff); ff.Refresh();
+                                    Trace("apply fim", ff.Handle);
+                                }
+                            }
+                            catch (Exception ex) { Log("apply no show", ex); }
+                            finally { pending.Remove(ff); if (cloaked && !ff.IsDisposed) Cloak(ff.Handle, false); }
+                        };
+                        once.Start();
                     }
                 }
                 catch (Exception ex) { Log("ShowHook", ex); }
@@ -133,6 +197,7 @@ namespace GxDracula
             running = false;
             if (timer != null) timer.Stop();
             if (showHook != IntPtr.Zero) { UnhookWindowsHookEx(showHook); showHook = IntPtr.Zero; }
+            if (msgHook != IntPtr.Zero) { UnhookWindowsHookEx(msgHook); msgHook = IntPtr.Zero; }
             Log("Stop", null);
         }
 
