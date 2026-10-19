@@ -1304,6 +1304,11 @@ namespace GxDracula
                         if (n != last) sb.Append(" | y" + y + " " + n);
                         last = n;
                     }
+                    k.Refresh();
+                    sb.Append(" || phases=" + GxDracula.DraculaDrawFilter.PhaseCalls + " borders=" + GxDracula.DraculaDrawFilter.BorderCalls);
+                    // Pixel real da linha clara: varre a coluna x=300 e loga y com cor clara.
+                    using (Bitmap bm = new Bitmap(k.Width, k.Height)) { k.DrawToBitmap(bm, new Rectangle(0, 0, k.Width, k.Height));
+                        for (int y = 0; y < Math.Min(k.Height, 200); y++) { Color px = bm.GetPixel(300, y); if (px.R + px.G + px.B > 330) sb.Append(" light@" + y + "=" + px.Name); } }
                     Log(sb.ToString(), null);
                 }
                 ElemsOf(k);

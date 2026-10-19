@@ -54,6 +54,7 @@ namespace GxDracula
                 if (k.Visible && InheritsFrom(k, "Infragistics.Win.UltraWinGrid"))
                 {
                     FixRowAppearances(k);
+                    HookFullRepaint(k);
                     // Toda grid (não só as de tipo Artech) recebe o filtro atual: sem ele a borda a cada 2 linhas aparece.
                     object df = Get(k, "DrawFilter");
                     if (df == null || !(df is DraculaDrawFilter) && df.GetType().FullName == typeof(DraculaDrawFilter).FullName) { SetDrawFilter(k); k.Invalidate(); }
@@ -247,6 +248,25 @@ namespace GxDracula
                 }
             }
             if (changed) k.Invalidate();
+        }
+
+        // Medido: com a grid desenhada inteira não há linha clara; ela é resto de repintura parcial (a IDE repinta pares de
+        // linhas ao trocar de aba/recarregar). Ao aparecer, mudar de tamanho ou recarregar, a grid é redesenhada toda.
+        private static readonly System.Collections.Generic.HashSet<int> repaintHooked = new System.Collections.Generic.HashSet<int>();
+        private static void HookFullRepaint(Control k)
+        {
+            if (!repaintHooked.Add(k.GetHashCode())) return;
+            EventHandler full = delegate { if (k.IsHandleCreated && !k.IsDisposed) k.BeginInvoke((MethodInvoker)delegate { k.Invalidate(true); k.Update(); }); };
+            k.VisibleChanged += full;
+            k.SizeChanged += full;
+            foreach (string ev in new[] { "InitializeLayout", "AfterRowsDeleted", "AfterSortChange" })
+            {
+                EventInfo ei = k.GetType().GetEvent(ev);
+                if (ei == null) continue;
+                try { ei.AddEventHandler(k, Delegate.CreateDelegate(ei.EventHandlerType, full.Target, full.Method)); }
+                catch (Exception ex) { Log("repaint " + ev, ex); }
+            }
+            full(k, EventArgs.Empty);
         }
 
         private static readonly System.Collections.Generic.HashSet<int> combosFixed = new System.Collections.Generic.HashSet<int>();

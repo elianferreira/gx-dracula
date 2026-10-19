@@ -11,6 +11,7 @@ namespace GxDracula
     public sealed class DraculaDrawFilter : IUIElementDrawFilter
     {
         public static readonly DraculaDrawFilter Instance = new DraculaDrawFilter();
+        public static int BorderCalls, PhaseCalls;
 
         private static bool Ours(UIElement e)
         {
@@ -41,6 +42,7 @@ namespace GxDracula
 
         public DrawPhase GetPhasesToFilter(ref UIElementDrawParams p)
         {
+            PhaseCalls++;
             if (Literal(p.Element) != '\0') return DrawPhase.BeforeDrawForeground;
             // Borda clara a cada 2 linhas nas grids do Team Development: some sem depender de qual Appearance a traz.
             if (RowBorder(p.Element)) return DrawPhase.BeforeDrawBorders;
@@ -57,7 +59,7 @@ namespace GxDracula
 
         public bool DrawElement(DrawPhase phase, ref UIElementDrawParams p)
         {
-            if (phase == DrawPhase.BeforeDrawBorders) return true;
+            if (phase == DrawPhase.BeforeDrawBorders) { BorderCalls++; return true; }
             if (phase == DrawPhase.BeforeDrawForeground)
             {
                 char ch = Literal(p.Element);
