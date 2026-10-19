@@ -675,7 +675,6 @@ namespace GxDracula
 
             if (c is StatusBar) ThemeStatusBar((StatusBar)c);
             if (InheritsFrom(c, "DevExpress.XtraTreeList")) { ThemeTreeList(c); HookTreeListDraw(c); }
-            if (InheritsFrom(c, "Infragistics.Win.UltraWinGrid")) ThemeUltraGrid(c);
             if (InheritsFrom(c, "Infragistics.Win.UltraWinEditors"))
             {
                 // Botão de dropdown dos editores: sem isso fica cinza claro do Office2007.
@@ -1380,27 +1379,6 @@ namespace GxDracula
                     g.DrawRectangle(q, 1, 1, c.Width - 3, c.Height - 3);
                 }
             }
-        }
-
-        // UltraGrid: a área sem linhas vem de DisplayLayout.Appearance (o Walk pula DisplayLayout por ser enorme).
-        private static void ThemeUltraGrid(Control g)
-        {
-            object dl = Get(g, "DisplayLayout");
-            if (dl == null) return;
-            IgApp(Get(dl, "Appearance"), Dracula.Background, Dracula.Foreground);
-            object ov = Get(dl, "Override");
-            IgApp(Get(ov, "RowAppearance"), Dracula.Background, Dracula.Foreground);
-            IgApp(Get(ov, "RowAlternateAppearance"), Dracula.Background, Dracula.Foreground);
-            IgApp(Get(ov, "CellAppearance"), Dracula.Background, Dracula.Foreground);
-            IgApp(Get(ov, "HeaderAppearance"), Dracula.Darkest, Dracula.Purple);
-            IgApp(Get(ov, "RowSelectorAppearance"), Dracula.Darkest, Dracula.Foreground);
-            IgApp(Get(ov, "SelectedRowAppearance"), Dracula.CurrentLine, Dracula.Foreground);
-            IgApp(Get(ov, "ActiveRowAppearance"), Dracula.CurrentLine, Dracula.Foreground);
-            IgApp(Get(ov, "GroupByRowAppearance"), Dracula.Darker, Dracula.Cyan);
-            IgApp(Get(Get(dl, "GroupByBox"), "Appearance"), Dracula.Darker, Dracula.Comment);
-            IgApp(Get(dl, "CaptionAppearance"), Dracula.Darkest, Dracula.Purple);
-            TrySetEnumByName(dl, "HeaderStyle", "Standard");
-            g.Invalidate();
         }
 
         private static void IgApp(object a, Color back, Color fore)
