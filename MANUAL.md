@@ -9,6 +9,9 @@ toolbar (Codicons). São dois arquivos:
 - `GxDracula.dll`: carregador, fica em `GeneXus18\Packages`.
 - `GxDracula.Theme.dll`: o tema, fica em `%LOCALAPPDATA%\GxDracula` e é recarregado a quente.
 
+Além deles, o instalador gera `%LOCALAPPDATA%\GxDracula\GxDracula.isl` (estilo Infragistics) rodando
+`make-isl.ps1` sobre o `GenexusOffice2010Silver.isl` da instalação; o tema o carrega ao iniciar.
+
 Não altera a KB nem os objetos. Partes em HTML (designer do Web Form, Start Page, preview do WorkWithPlus)
 continuam claras.
 

@@ -22,7 +22,7 @@ try {
     }
     New-Item -ItemType Directory -Force (Join-Path $pasta 'fonts') | Out-Null
     Copy-Item (Join-Path $env:LOCALAPPDATA 'GxDracula\fonts\*') (Join-Path $pasta 'fonts')
-    Copy-Item "$PSScriptRoot\installer\fonts.ps1" $pasta
+    Copy-Item "$PSScriptRoot\installer\fonts.ps1", "$PSScriptRoot\isl\make-isl.ps1" $pasta
     Copy-Item "$PSScriptRoot\installer\install.ps1", "$PSScriptRoot\installer\uninstall.ps1", "$PSScriptRoot\MANUAL.md" $pasta
 
     Compress-Archive -Path $pasta -DestinationPath $zip -Force

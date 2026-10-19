@@ -92,6 +92,14 @@ try {
         Copy-Item (Join-Path $origem 'codicons\*') (Join-Path $dest 'codicons') -Force
     }
 
+    # Estilo Infragistics (GxDracula.isl): gerado do GenexusOffice2010Silver.isl desta instalação; o tema carrega no Start.
+    $isl = Join-Path $dest 'GxDracula.isl'
+    if (Test-Path (Join-Path $origem 'make-isl.ps1')) {
+        Acao "Gerar $isl a partir de $GeneXusPath\GenexusOffice2010Silver.isl"
+        if (-not $DryRun) { & (Join-Path $origem 'make-isl.ps1') -GeneXusPath $GeneXusPath -Out $isl }
+    }
+    else { Write-Host 'Aviso: make-isl.ps1 ausente no pacote; sem o .isl parte da IDE fica clara.' -ForegroundColor Yellow }
+
     # Preview do WorkWithPlus
     if ($LiberarPreviewWWP) {
         $prev = Join-Path $GeneXusPath 'Packages\Patterns\WorkWithPlus\PreviewImages'
