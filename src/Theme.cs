@@ -646,7 +646,9 @@ namespace GxDracula
                 logo = "<img src=\"data:image/" + (ext == "svg" ? "svg+xml" : "png") + ";base64," + Convert.ToBase64String(System.IO.File.ReadAllBytes(f)) + "\" style=\"height:88px;margin-right:28px\">";
                 break;
             }
-            string css = "html,body{background:#282A36!important}body *{background-color:transparent!important;background-image:none!important;box-shadow:none}html,body,div,section,header,nav,table,td,th,tr,p,span,li,strong,b,label{background-color:#282A36!important;color:#F8F8F2!important;border-color:#44475A!important}" +
+            string css = "html,body{background:#282A36!important}body *{background-color:transparent!important;background-image:none!important;box-shadow:none}html,body,div,section,header,nav,table,td,th,tr,p,span,li,strong,b,label{background-color:#282A36!important;color:#F8F8F2!important}" +
+                // Bordas só na tabela; molduras do site (faixa do menu, caixas) somem.
+                "body *{border-color:transparent!important}table,td,th{border-color:#44475A!important}" +
                 "a{color:#FF79C6!important}a:hover{color:#BD93F9!important}h1,h2,h3,h4,th{color:#BD93F9!important}" +
                 "img,svg{filter:none}#gxdr-welcome{display:flex;align-items:center;margin:28px 134px 8px;padding:28px 36px;border-radius:14px;" +
                 "background:linear-gradient(120deg,#44475A 0%,#282A36 70%)!important;border:1px solid #6272A4!important;box-shadow:0 8px 28px rgba(0,0,0,.35)}" +
