@@ -473,6 +473,13 @@ namespace GxDracula
                     }
                 return;
             }
+            if (cmd.StartsWith("js "))
+            {
+                // js <expressão>: avalia em cada navegador CEF registrado e loga o resultado (Output, Start Page).
+                Type ext = FindType("CefSharp.WebBrowserExtensions");
+                foreach (WeakReference w in browsers.ToArray()) { Control b = w.Target as Control; if (b != null && !b.IsDisposed) Probe(ext, b, cmd.Substring(3)); }
+                return;
+            }
             if (cmd == "docs")
             {
                 // docs: título de cada documento aberto (o "*" de alterado aparece no texto da janela MDI).
@@ -759,7 +766,7 @@ namespace GxDracula
 
         private const string MonacoScript =
             "(function(){if(!window.monaco||!monaco.editor)return;" +
-            "if(!window.__gxDracula){monaco.editor.defineTheme('gx-dracula',{base:'vs-dark',inherit:true,rules:[" +
+            "if(window.__gxDracula!==2){monaco.editor.defineTheme('gx-dracula',{base:'vs-dark',inherit:true,rules:[" +
             "{token:'',foreground:'F8F8F2'},{token:'comment',foreground:'6272A4'},{token:'string',foreground:'F1FA8C'}," +
             "{token:'number',foreground:'BD93F9'},{token:'keyword',foreground:'FF79C6'},{token:'operator',foreground:'FF79C6'}," +
             "{token:'variable',foreground:'FFB86C'},{token:'type',foreground:'8BE9FD'},{token:'function',foreground:'50FA7B'}," +
@@ -768,8 +775,13 @@ namespace GxDracula
             "colors:{'editor.background':'#282A36','editor.foreground':'#F8F8F2','editor.lineHighlightBackground':'#44475A75'," +
             "'editor.selectionBackground':'#44475A','editorCursor.foreground':'#F8F8F0','editorLineNumber.foreground':'#6272A4'," +
             "'editorLineNumber.activeForeground':'#F8F8F2','editorIndentGuide.background':'#424450','editorWidget.background':'#21222C'," +
-            "'scrollbarSlider.background':'#44475A80','scrollbarSlider.hoverBackground':'#6272A480'}});window.__gxDracula=1;}" +
-            "monaco.editor.setTheme('gx-dracula');document.body.style.background='#282A36';})();";
+            "'scrollbarSlider.background':'#44475A80','scrollbarSlider.hoverBackground':'#6272A480'," +
+            // Borda do overview ruler (vs-dark) saía como linha clara vertical no Output.
+            "'editorOverviewRuler.border':'#191A21','editorRuler.foreground':'#44475A','scrollbar.shadow':'#00000000'}});window.__gxDracula=2;}" +
+            "monaco.editor.setTheme('gx-dracula');document.body.style.background='#282A36';" +
+            // Medido no Output: o OutputPane.html põe border-left 1px #EEEEEE no minimap (linha clara vertical).
+            "if(!document.getElementById('gxdr-monaco')){var s=document.createElement('style');s.id='gxdr-monaco';" +
+            "s.textContent='.monaco-editor .minimap{border-left-color:#191A21!important}';document.head.appendChild(s);}})();";
 
         // Start Page (start2.genexus.com): tema escuro e faixa "Bem-vindo" com o logo em %LOCALAPPDATA%\GxDracula\logo.png|svg.
         private static string startScript;
@@ -852,7 +864,9 @@ namespace GxDracula
         private static readonly HashSet<object> probed = new HashSet<object>();
 
         // Diagnóstico: registra no log o que a página tem (monaco? iframes? url).
-        private static void Probe(Type ext, Control b)
+        private static void Probe(Type ext, Control b) { Probe(ext, b, null); }
+
+        private static void Probe(Type ext, Control b, string expr)
         {
             try
             {
@@ -866,7 +880,7 @@ namespace GxDracula
                 if (eval == null) { Log("Probe: sem EvaluateScriptAsync", null); return; }
                 object[] args = new object[eval.GetParameters().Length];
                 args[0] = b;
-                args[1] = "location.href+' | monaco='+(typeof monaco)+' | iframes='+document.querySelectorAll('iframe').length+' | require='+(typeof require)";
+                args[1] = expr != null ? expr : "location.href+' | monaco='+(typeof monaco)+' | iframes='+document.querySelectorAll('iframe').length+' | require='+(typeof require)";
                 for (int i = 2; i < args.Length; i++) args[i] = Type.Missing;
                 object task = eval.Invoke(null, args);
                 System.Threading.ThreadPool.QueueUserWorkItem(delegate
