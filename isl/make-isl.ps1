@@ -83,6 +83,19 @@ foreach ($el in $x.SelectNodes('//*[@*]')) {
         if ($nv -ne $a.Value) { $a.Value = $nv; $n++ }
     }
 }
+# Áreas de controle sem cor no Silver herdam o Appearance que a IDE grava (Select Objects: grid vazia em White).
+# Com cor no estilo + ApplicationThenControl o fundo vazio fica escuro sem tocar no controle.
+foreach ($role in 'GridControlArea', 'TreeControlArea', 'ListViewControlArea') {
+    $st = $x.SelectSingleNode("//*[local-name()='style'][@role='$role']")
+    if ($null -eq $st) { continue }
+    $states = $st.SelectSingleNode("*[local-name()='states']")
+    if ($null -eq $states) { $states = $st.AppendChild($x.CreateElement('states', $st.NamespaceURI)) }
+    $normal = $states.SelectSingleNode("*[local-name()='state'][@name='Normal']")
+    if ($null -eq $normal) { $normal = $states.AppendChild($x.CreateElement('state', $st.NamespaceURI)); $normal.SetAttribute('name', 'Normal') }
+    if (-not $normal.GetAttribute('backColor')) { $normal.SetAttribute('backColor', $P.Background); $n++ }
+    if (-not $normal.GetAttribute('foreColor')) { $normal.SetAttribute('foreColor', $P.Foreground) }
+}
+
 # As imagens dos recursos são gradientes claros do Office 2010: sem elas vale o backColor mapeado.
 $imgs = @($x.SelectNodes('//*[local-name()="imageBackground"]'))
 foreach ($i in $imgs) { [void]$i.ParentNode.RemoveChild($i) }
