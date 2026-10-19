@@ -632,6 +632,36 @@ namespace GxDracula
             "'scrollbarSlider.background':'#44475A80','scrollbarSlider.hoverBackground':'#6272A480'}});window.__gxDracula=1;}" +
             "monaco.editor.setTheme('gx-dracula');document.body.style.background='#282A36';})();";
 
+        // Start Page (start2.genexus.com): tema escuro e faixa "Bem-vindo" com o logo em %LOCALAPPDATA%\GxDracula\logo.png|svg.
+        private static string startScript;
+        private static string StartScript()
+        {
+            if (startScript != null) return startScript;
+            string logo = "";
+            string dir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GxDracula");
+            foreach (string ext in new[] { "svg", "png" })
+            {
+                string f = System.IO.Path.Combine(dir, "logo." + ext);
+                if (!System.IO.File.Exists(f)) continue;
+                logo = "<img src=\"data:image/" + (ext == "svg" ? "svg+xml" : "png") + ";base64," + Convert.ToBase64String(System.IO.File.ReadAllBytes(f)) + "\" style=\"height:64px;margin-right:24px\">";
+                break;
+            }
+            string css = "html,body,div,section,header,nav,table,td,th,tr,p,span,li,strong,b,label{background-color:#282A36!important;color:#F8F8F2!important;border-color:#44475A!important}" +
+                "a{color:#FF79C6!important}a:hover{color:#BD93F9!important}h1,h2,h3,h4,th{color:#BD93F9!important}" +
+                "img,svg{filter:none}#gxdr-welcome{display:flex;align-items:center;padding:28px 0 12px 134px}" +
+                "#gxdr-welcome h1{font:600 30px 'Inter','Segoe UI',sans-serif;margin:0;color:#F8F8F2!important}" +
+                "#gxdr-welcome p{margin:6px 0 0;color:#6272A4!important;font:15px 'Inter','Segoe UI',sans-serif}";
+            string html = logo + "<div><h1>Bem-vindo ao GeneXus</h1><p>Univali · Sistemas</p></div>";
+            startScript = "(function(){if(location.host.indexOf('genexus.com')<0||!document.body)return;" +
+                "var s=document.getElementById('gxdr-css');if(!s){s=document.createElement('style');s.id='gxdr-css';document.head.appendChild(s);}s.textContent=" + JsStr(css) + ";" +
+                "if(!document.getElementById('gxdr-welcome')){var d=document.createElement('div');d.id='gxdr-welcome';d.innerHTML=" + JsStr(html) + ";" +
+                "var n=document.querySelector('nav,header,ul');var at=n?n.parentNode:document.body;at.insertBefore(d,n?n.nextSibling:at.firstChild);}" +
+                "Array.prototype.forEach.call(document.querySelectorAll('h2,h3,div'),function(e){if(/^\\s*TOP NEWS\\s*$/i.test(e.textContent)){var p=e.parentNode;if(p&&p.textContent.replace(/\\s/g,'').length<20)p.style.display='none';else e.style.display='none';var x=p&&p.nextElementSibling;if(x&&!x.textContent.trim())x.style.display='none';}});})();";
+            return startScript;
+        }
+
+        private static string JsStr(string s) { return "'" + s.Replace("\\", "\\\\").Replace("'", "\\'") + "'"; }
+
         private static void ThemeBrowsers()
         {
             if (++browserTick % 3 != 0) return;
@@ -651,7 +681,7 @@ namespace GxDracula
                 if (b == null || b.IsDisposed) { browsers.Remove(w); continue; }
                 object init = Get(b, "IsBrowserInitialized"); if (!probed.Contains(b)) Log("browser init=" + init, null); if (init is bool && !(bool)init) continue;
                 if (!probed.Contains(b)) { probed.Add(b); Probe(ext, b); }
-                try { exec.Invoke(null, new object[] { b, MonacoScript }); }
+                try { exec.Invoke(null, new object[] { b, MonacoScript }); exec.Invoke(null, new object[] { b, StartScript() }); }
                 catch (Exception ex) { Log("Monaco", ex); browsers.Remove(w); }
             }
         }
