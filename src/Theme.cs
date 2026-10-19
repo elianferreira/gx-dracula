@@ -83,6 +83,7 @@ namespace GxDracula
             if (File.Exists(off)) { Log("desligado por " + off, null); return; }
             Log("Start", null);
             GlobalSettings();
+            if (File.Exists(islPath)) try { LoadIsl("dracula"); } catch (Exception ex) { Log("isl", ex); }
             timer = new Timer();
             timer.Interval = 700;
             timer.Tick += delegate { Tick(); };
@@ -140,7 +141,7 @@ namespace GxDracula
 
         private static IntPtr ShowHook(int code, IntPtr wParam, IntPtr lParam)
         {
-            if (code >= 0 && running)
+            if (code >= 0 && running && !islOnlyOn)
             {
                 try
                 {
@@ -212,6 +213,7 @@ namespace GxDracula
                 if (File.Exists(dumpTrigger)) { File.Delete(dumpTrigger); Dump(); }
                 if (File.Exists(cmdFile)) { string cmd = File.ReadAllText(cmdFile).Trim(); File.Delete(cmdFile); RunCommand(cmd); }
                 if (!schemeSet) { schemeSet = true; RunCommand("scheme Black"); }
+                if (File.Exists(islOnly)) return;
                 foreach (Form f in Application.OpenForms) Apply(f);
                 ThemeBrowsers();
                 ThemeCrownTabs();
@@ -461,6 +463,7 @@ namespace GxDracula
                     }
                 return;
             }
+            if (cmd.StartsWith("isl ")) { LoadIsl(cmd.Substring(4)); return; }
             if (!cmd.StartsWith("tab ")) return;
             string title = cmd.Substring(4);
             foreach (Form f in Application.OpenForms) SelectTab(f, title);
@@ -1404,6 +1407,21 @@ namespace GxDracula
                     {
                         object e = efp.Invoke(main, new object[] { new Point(120, y) });
                         string n = e == null ? "-" : e.GetType().Name + " bs=" + Get(e, "BorderStyle") + " r=" + Get(e, "Rect");
+                        if (n != last && e != null && e.GetType().Name == "RowCellAreaUIElement")
+                        {
+                            // De onde vem a borda: appearance resolvida da linha + BorderStyleRow efetivo.
+                            object row = Get(e, "Row");
+                            Type adt = FindType("Infragistics.Win.AppearanceData"), aft = FindType("Infragistics.Win.AppearancePropFlags");
+                            MethodInfo ra = row == null || adt == null ? null : row.GetType().GetMethod("ResolveAppearance", new[] { adt.MakeByRefType(), aft });
+                            if (ra != null)
+                            {
+                                object[] ps = { Activator.CreateInstance(adt), Enum.Parse(aft, "AllRender") };
+                                ra.Invoke(row, ps);
+                                sb.Append(" [res bc=" + Get(ps[0], "BorderColor") + " back=" + Get(ps[0], "BackColor") + "]");
+                            }
+                            sb.Append(" [alt=" + Get(row, "IsAlternate") + " hasApp=" + Get(row, "HasAppearance") + " rowBs=" + Get(Get(row, "Band"), "BorderStyleRowResolved")
+                                + " bandOv=" + Get(Get(Get(row, "Band"), "Override"), "BorderStyleRow") + " altApp=" + Get(Get(Get(Get(row, "Band"), "Override"), "RowAlternateAppearance"), "BorderColor") + "]");
+                        }
                         if (n != last) sb.Append(" | y" + y + " " + n);
                         last = n;
                     }

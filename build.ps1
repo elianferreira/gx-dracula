@@ -12,7 +12,7 @@ $sdk = 'Artech.Architecture.Common', 'Artech.Architecture.UI.Framework', 'Artech
 
 & $csc /nologo /target:library "/out:$bin\GxDracula.dll" @sdk /r:System.Windows.Forms.dll "$PSScriptRoot\src\Package.cs"
 if ($LASTEXITCODE) { throw 'falhou o carregador' }
-& $csc /nologo /target:library "/out:$bin\GxDracula.Theme.dll" /r:System.Windows.Forms.dll /r:System.Drawing.dll "$PSScriptRoot\src\Theme.cs" "$PSScriptRoot\src\Tabs.cs" "$PSScriptRoot\src\Fonts.cs" "$PSScriptRoot\src\DrawFilter.cs" "$PSScriptRoot\src\Extra.cs" "/r:$g\Infragistics2.Win.v11.1.dll" "/r:$g\Infragistics2.Shared.v11.1.dll"
+& $csc /nologo /target:library "/out:$bin\GxDracula.Theme.dll" /r:System.Windows.Forms.dll /r:System.Drawing.dll "$PSScriptRoot\src\Theme.cs" "$PSScriptRoot\src\Tabs.cs" "$PSScriptRoot\src\Fonts.cs" "$PSScriptRoot\src\DrawFilter.cs" "$PSScriptRoot\src\Extra.cs" "$PSScriptRoot\src\Isl.cs" /r:System.Xml.dll "/r:$g\Infragistics2.Win.v11.1.dll" "/r:$g\Infragistics2.Shared.v11.1.dll"
 if ($LASTEXITCODE) { throw 'falhou o tema' }
 
 $dest = Join-Path $env:LOCALAPPDATA 'GxDracula'
