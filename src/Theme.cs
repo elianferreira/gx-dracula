@@ -226,6 +226,12 @@ namespace GxDracula
                 }
                 return;
             }
+            if (cmd == "elems")
+            {
+                // elems: tipos de UIElement na coluna x=120 de cada grid visível (achar quem desenha a borda clara).
+                foreach (Form f in Application.OpenForms) ElemsOf(f);
+                return;
+            }
             if (cmd.StartsWith("node "))
             {
                 // node <texto>: seleciona o nó de mesmo texto em qualquer TreeView aberto (categorias do Options).
@@ -1277,6 +1283,30 @@ namespace GxDracula
                         using (Pen p = new Pen(Dracula.Darker, 2)) g.DrawRectangle(p, r);
                     }
                 }
+            }
+        }
+
+        private static void ElemsOf(Control c)
+        {
+            foreach (Control k in c.Controls)
+            {
+                if (k.Visible && InheritsFrom(k, "Infragistics.Win.UltraWinGrid"))
+                {
+                    object df = Get(k, "DrawFilter");
+                    System.Text.StringBuilder sb = new System.Text.StringBuilder("elems " + k.Name + " df=" + (df == null ? "null" : df.GetType().Assembly.GetName().Version + (df is GxDracula.DraculaDrawFilter ? " atual" : " velho")));
+                    object main = Get(Get(k, "DisplayLayout"), "UIElement");
+                    MethodInfo efp = main == null ? null : main.GetType().GetMethod("ElementFromPoint", new[] { typeof(Point) });
+                    string last = "";
+                    for (int y = 0; y < Math.Min(k.Height, 140) && efp != null; y++)
+                    {
+                        object e = efp.Invoke(main, new object[] { new Point(120, y) });
+                        string n = e == null ? "-" : e.GetType().Name + " bs=" + Get(e, "BorderStyle") + " r=" + Get(e, "Rect");
+                        if (n != last) sb.Append(" | y" + y + " " + n);
+                        last = n;
+                    }
+                    Log(sb.ToString(), null);
+                }
+                ElemsOf(k);
             }
         }
 

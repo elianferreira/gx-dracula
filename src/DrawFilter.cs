@@ -50,7 +50,9 @@ namespace GxDracula
         private static bool RowBorder(UIElement e)
         {
             string n = e.GetType().Name;
-            return n == "RowUIElement" || n == "RowCellAreaUIElement" || n == "RowAutoPreviewUIElement" || n == "RowColRegionIntersectionUIElement";
+            return n == "RowUIElement" || n == "RowCellAreaUIElement" || n == "RowAutoPreviewUIElement" || n == "RowColRegionIntersectionUIElement"
+                // Borda clara a cada 2 linhas na Update: vem da célula (BorderStyleCell da linha alternada), não da linha.
+                || n == "CellUIElement" || n == "EditorWithTextDisplayTextUIElement";
         }
 
         public bool DrawElement(DrawPhase phase, ref UIElementDrawParams p)
