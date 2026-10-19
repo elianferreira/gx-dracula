@@ -88,6 +88,36 @@ namespace GxDracula
             timer.Tick += delegate { Tick(); };
             timer.Start();
             running = true;
+            // Janela nova (Select Objects, diálogos) aparecia branca até o próximo Tick: tema no WM_SHOWWINDOW, antes de pintar.
+            showHookProc = ShowHook;
+            showHook = SetWindowsHookEx(4 /* WH_CALLWNDPROC */, showHookProc, IntPtr.Zero, GetCurrentThreadId());
+        }
+
+        private delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
+        private static HookProc showHookProc;
+        private static IntPtr showHook;
+        [DllImport("user32.dll")] private static extern IntPtr SetWindowsHookEx(int id, HookProc fn, IntPtr mod, int thread);
+        [DllImport("user32.dll")] private static extern bool UnhookWindowsHookEx(IntPtr h);
+        [DllImport("user32.dll")] private static extern IntPtr CallNextHookEx(IntPtr h, int code, IntPtr wParam, IntPtr lParam);
+        [DllImport("kernel32.dll")] private static extern int GetCurrentThreadId();
+        [StructLayout(LayoutKind.Sequential)] private struct CWPSTRUCT { public IntPtr lParam, wParam; public int message; public IntPtr hwnd; }
+
+        private static IntPtr ShowHook(int code, IntPtr wParam, IntPtr lParam)
+        {
+            if (code >= 0 && running)
+            {
+                try
+                {
+                    CWPSTRUCT m = (CWPSTRUCT)Marshal.PtrToStructure(lParam, typeof(CWPSTRUCT));
+                    if (m.message == 0x0018 /* WM_SHOWWINDOW */ && m.wParam != IntPtr.Zero)
+                    {
+                        Form f = Control.FromHandle(m.hwnd) as Form;
+                        if (f != null && !seen.Contains(f)) { Apply(f); AttachThumbs(f); }
+                    }
+                }
+                catch (Exception ex) { Log("ShowHook", ex); }
+            }
+            return CallNextHookEx(showHook, code, wParam, lParam);
         }
 
         // Chamado pelo pacote antes de carregar uma versão nova desta DLL.
@@ -95,6 +125,7 @@ namespace GxDracula
         {
             running = false;
             if (timer != null) timer.Stop();
+            if (showHook != IntPtr.Zero) { UnhookWindowsHookEx(showHook); showHook = IntPtr.Zero; }
             Log("Stop", null);
         }
 
