@@ -213,6 +213,35 @@ namespace GxDracula
         private static void RunCommand(string cmd)
         {
             if (cmd.StartsWith("combo ")) { ComboCommand(cmd.Substring(6).Trim()); return; }
+            if (cmd.StartsWith("shot "))
+            {
+                // shot <form|main> <arquivo.png>: foto da janela por dentro do processo (independe de foco/PrintWindow).
+                string[] a = cmd.Substring(5).Trim().Split(new[] { ' ' }, 2);
+                foreach (Form f in Application.OpenForms)
+                {
+                    if (!(a[0] == "main" ? f.IsMdiContainer || f == Application.OpenForms[0] : f.Name == a[0] || f.Text == a[0])) continue;
+                    using (Bitmap bm = new Bitmap(f.Width, f.Height)) { f.DrawToBitmap(bm, new Rectangle(0, 0, f.Width, f.Height)); bm.Save(a[1]); }
+                    Log("shot " + f.Name + " -> " + a[1], null);
+                    break;
+                }
+                return;
+            }
+            if (cmd.StartsWith("node "))
+            {
+                // node <texto>: seleciona o nó de mesmo texto em qualquer TreeView aberto (categorias do Options).
+                string want = cmd.Substring(5).Trim();
+                foreach (Form f in Application.OpenForms)
+                    foreach (Control c in f.Controls.Find("treeCategories", true))
+                    {
+                        TreeView tv = c as TreeView;
+                        if (tv == null) continue;
+                        tv.ExpandAll();
+                        TreeNode hit = FindNode(tv.Nodes, want);
+                        if (hit != null) { tv.SelectedNode = hit; hit.EnsureVisible(); }
+                        Log("node " + want + " -> " + (hit != null), null);
+                    }
+                return;
+            }
             if (cmd.StartsWith("doc "))
             {
                 foreach (Form f in Application.OpenForms)
@@ -430,6 +459,8 @@ namespace GxDracula
                 crownTabs.Add(new WeakReference(c));
                 c.Invalidate();
             }
+            else if (c is TabControl) ThemeWinTabs((TabControl)c);
+            else if (c is TabPage) { ((TabPage)c).UseVisualStyleBackColor = false; c.BackColor = Dracula.Background; c.ForeColor = Dracula.Foreground; }
             else if (InheritsFrom(c, "VisualHint.SmartPropertyGrid")) ThemeSmartPropertyGrid(c);
             else if (c.GetType().FullName == "CefSharp.WinForms.ChromiumWebBrowser") { browsers.Add(new WeakReference(c)); Log("browser registrado", null); }
             else
@@ -1136,9 +1167,94 @@ namespace GxDracula
 
         // Seleção do TreeView nativo sai no azul do sistema (Options): desenha o texto do nó.
         // Só em árvores sem owner-draw próprio, para não brigar com quem já desenha.
+        // TabControl do WinForms (abas do Options > Text): com visual styles a página e as abas saem brancas.
+        private static void ThemeWinTabs(TabControl tc)
+        {
+            tc.BackColor = Dracula.Darker;
+            if (tc.IsHandleCreated) TabFramePainter.Attach(tc); else tc.HandleCreated += delegate { TabFramePainter.Attach(tc); };
+            if (tc.DrawMode == TabDrawMode.OwnerDrawFixed) return;
+            tc.DrawMode = TabDrawMode.OwnerDrawFixed;
+            tc.DrawItem += delegate(object s, DrawItemEventArgs e)
+            {
+                if (e.Index < 0 || e.Index >= tc.TabPages.Count) return;
+                bool sel = e.Index == tc.SelectedIndex;
+                Rectangle r = tc.GetTabRect(e.Index);
+                // Margem que o controle nativo deixa em volta da aba.
+                using (SolidBrush b = new SolidBrush(Dracula.Darker)) e.Graphics.FillRectangle(b, Rectangle.Inflate(r, 2, 2));
+                using (SolidBrush b = new SolidBrush(sel ? Dracula.Background : Dracula.Darker)) e.Graphics.FillRectangle(b, r);
+                if (sel) using (Pen p = new Pen(Dracula.Purple, 2)) e.Graphics.DrawLine(p, r.Left, r.Bottom - 1, r.Right, r.Bottom - 1);
+                TextRenderer.DrawText(e.Graphics, tc.TabPages[e.Index].Text, tc.Font, r, sel ? Dracula.Foreground : Dracula.Comment,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+            };
+            tc.Invalidate();
+        }
+
+        // A moldura da página e a faixa das abas vêm do tema visual, fora do DrawItem: repinta por cima no WM_PAINT.
+        private sealed class TabFramePainter : NativeWindow
+        {
+            private static readonly System.Collections.Generic.HashSet<IntPtr> done = new System.Collections.Generic.HashSet<IntPtr>();
+            private readonly TabControl tc;
+            public static void Attach(TabControl t) { if (done.Add(t.Handle)) { new TabFramePainter(t); t.Invalidate(); } }
+            private TabFramePainter(TabControl t) { tc = t; AssignHandle(t.Handle); t.HandleDestroyed += delegate { done.Remove(tc.Handle); ReleaseHandle(); }; }
+            protected override void WndProc(ref Message m)
+            {
+                base.WndProc(ref m);
+                if (m.Msg != 0x000F || tc.TabCount == 0) return;
+                using (Graphics g = Graphics.FromHwnd(tc.Handle))
+                {
+                    Rectangle d = tc.DisplayRectangle;
+                    Rectangle frame = Rectangle.FromLTRB(d.Left - 4, d.Top - 4, d.Right + 3, d.Bottom + 3);
+                    using (Pen p = new Pen(Dracula.Darker, 4)) g.DrawRectangle(p, Rectangle.Inflate(frame, -1, -1));
+                    using (Pen p = new Pen(Dracula.CurrentLine)) g.DrawRectangle(p, frame);
+                    Rectangle last = tc.GetTabRect(tc.TabCount - 1);
+                    using (SolidBrush b = new SolidBrush(Dracula.Darker))
+                        g.FillRectangle(b, Rectangle.FromLTRB(last.Right + 1, 0, tc.Width, frame.Top));
+                    for (int i = 0; i < tc.TabCount; i++)
+                    {
+                        Rectangle r = tc.GetTabRect(i);
+                        using (Pen p = new Pen(Dracula.Darker, 2)) g.DrawRectangle(p, r);
+                    }
+                }
+            }
+        }
+
+        private static TreeNode FindNode(TreeNodeCollection ns, string text)
+        {
+            foreach (TreeNode n in ns)
+            {
+                if (n.Text == text) return n;
+                TreeNode r = FindNode(n.Nodes, text);
+                if (r != null) return r;
+            }
+            return null;
+        }
+
         private static void DarkTreeSelection(TreeView t)
         {
-            if (t.DrawMode != TreeViewDrawMode.Normal) return;
+            if (t.DrawMode == TreeViewDrawMode.OwnerDrawAll && t.GetType().Name == "GxTreeView")
+            {
+                // GxTreeView desenha tudo sozinho com o azul do sistema na seleção: repinta só o texto do nó selecionado.
+                t.DrawNode += delegate(object s, DrawTreeNodeEventArgs e)
+                {
+                    if (e.Node.Bounds.IsEmpty) return;
+                    bool sel = (e.State & TreeNodeStates.Selected) != 0;
+                    // O GxTreeView escreve o texto ~Indent+8 px antes do Bounds nativo (medido: 31 px com Indent 23).
+                    Rectangle nb = e.Node.Bounds;
+                    int x = nb.X - t.Indent - 8;
+                    int w = TextRenderer.MeasureText(e.Node.Text, e.Node.NodeFont ?? t.Font).Width + 4;
+                    using (SolidBrush b = new SolidBrush(t.BackColor)) e.Graphics.FillRectangle(b, Rectangle.FromLTRB(x, nb.Y, Math.Max(nb.Right + 2, x + w), nb.Bottom));
+                    Rectangle r = new Rectangle(x, nb.Y, w, nb.Height);
+                    // Texto de todos os nós: o GxTreeView usa um cinza escuro, ilegível no fundo Dracula.
+                    using (SolidBrush b = new SolidBrush(sel ? Dracula.CurrentLine : t.BackColor)) e.Graphics.FillRectangle(b, r);
+                    TextRenderer.DrawText(e.Graphics, e.Node.Text, e.Node.NodeFont ?? t.Font, r, sel ? Dracula.Purple : Dracula.Foreground,
+                        TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPrefix);
+                };
+                Log("gxtree img=" + Get(t, "ImageSize") + " space=" + Get(t, "NodeTextSpace") + " exp=" + Get(t, "ExpansionIndicatorSize") + " draw=" + Get(t, "DrawImages") + " own=" + Get(t, "UseOwnImages") + " indent=" + t.Indent, null);
+                t.Invalidate();
+                return;
+            }
+            if (t.DrawMode != TreeViewDrawMode.Normal) { Log("tree " + t.Name + " drawmode=" + t.DrawMode, null); return; }
+            Log("tree " + t.Name + " seleção escura", null);
             t.HideSelection = false;
             t.DrawMode = TreeViewDrawMode.OwnerDrawText;
             t.DrawNode += delegate(object s, DrawTreeNodeEventArgs e)

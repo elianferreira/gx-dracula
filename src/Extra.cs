@@ -266,6 +266,7 @@ namespace GxDracula
             catch (Exception ex) { Log("ResetCombo", ex); }
             co.ForeColor = Dracula.Foreground;
             co.BackColor = Dracula.Background;
+            if (co.GetType().Name == "FontDropDownList") { if (co.IsHandleCreated) OwnerComboPainter.Attach(co); else co.HandleCreated += delegate { OwnerComboPainter.Attach(co); }; }
             // Sem tema visual: o DarkMode_CFD redesenha o botão em hot-track ao passar o mouse (pisca contra a seta
             // do BorderPainter) e pinta o texto do edit com a cor do tema (preto).
             UnthemeCombo(co);
@@ -280,6 +281,42 @@ namespace GxDracula
         }
 
         private static int foreLog;
+
+        // FontDropDownList do Actipro (Options > Output) sobrescreve OnDrawItem com fundo branco, sem chamar o evento:
+        // intercepta o WM_DRAWITEM refletido e desenha cada fonte no próprio estilo, em fundo escuro.
+        private sealed class OwnerComboPainter : NativeWindow
+        {
+            private static readonly System.Collections.Generic.HashSet<IntPtr> done = new System.Collections.Generic.HashSet<IntPtr>();
+            private readonly ComboBox co;
+            public static void Attach(ComboBox c) { if (c.IsHandleCreated && done.Add(c.Handle)) new OwnerComboPainter(c); }
+            private OwnerComboPainter(ComboBox c) { co = c; AssignHandle(c.Handle); c.HandleDestroyed += delegate { done.Remove(co.Handle); ReleaseHandle(); }; c.Invalidate(); }
+
+            [StructLayout(LayoutKind.Sequential)]
+            private struct DRAWITEMSTRUCT { public int CtlType, CtlID, itemID, itemAction, itemState; public IntPtr hwndItem, hDC; public int l, t, r, b; public IntPtr itemData; }
+
+            protected override void WndProc(ref Message m)
+            {
+                if (m.Msg != 0x202B) { base.WndProc(ref m); return; }
+                DRAWITEMSTRUCT d = (DRAWITEMSTRUCT)Marshal.PtrToStructure(m.LParam, typeof(DRAWITEMSTRUCT));
+                Rectangle r = Rectangle.FromLTRB(d.l, d.t, d.r, d.b);
+                bool sel = (d.itemState & 0x1) != 0 && (d.itemState & 0x1000) == 0;
+                using (Graphics g = Graphics.FromHdc(d.hDC))
+                {
+                    using (SolidBrush bg = new SolidBrush(sel ? Dracula.CurrentLine : Dracula.Background)) g.FillRectangle(bg, r);
+                    if (sel) using (SolidBrush bar = new SolidBrush(Dracula.Purple)) g.FillRectangle(bar, r.X, r.Y, 2, r.Height);
+                    if (d.itemID >= 0 && d.itemID < co.Items.Count)
+                    {
+                        string s = co.GetItemText(co.Items[d.itemID]);
+                        Font f = null;
+                        try { f = new Font(s, co.Font.Size); } catch { }
+                        TextRenderer.DrawText(g, s, f ?? co.Font, new Rectangle(r.X + 6, r.Y, r.Width - 6, r.Height), Dracula.Foreground,
+                            TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+                        if (f != null) f.Dispose();
+                    }
+                }
+                m.Result = (IntPtr)1;
+            }
+        }
 
         private static void UnthemeCombo(ComboBox co)
         {
