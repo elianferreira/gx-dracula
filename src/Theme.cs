@@ -81,7 +81,14 @@ namespace GxDracula
         {
             string off = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GxDracula.disabled");
             if (File.Exists(off)) { Log("desligado por " + off, null); return; }
-            Log("Start", null);
+            // %APPDATA%\GxDracula.cmdonly no startup: sem tema nenhum, só os comandos de diagnóstico (A/B do comportamento da IDE).
+            cmdOnly = File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GxDracula.cmdonly"));
+            Log("Start" + (cmdOnly ? " (cmdonly)" : ""), null);
+            if (cmdOnly)
+            {
+                timer = new Timer(); timer.Interval = 700; timer.Tick += delegate { Tick(); }; timer.Start(); running = true;
+                return;
+            }
             GlobalSettings();
             if (File.Exists(islPath)) try { LoadIsl("dracula"); } catch (Exception ex) { Log("isl", ex); }
             timer = new Timer();
@@ -141,7 +148,7 @@ namespace GxDracula
 
         private static IntPtr ShowHook(int code, IntPtr wParam, IntPtr lParam)
         {
-            if (code >= 0 && running && !islOnlyOn)
+            if (code >= 0 && running && !IslOnly())
             {
                 try
                 {
@@ -202,7 +209,7 @@ namespace GxDracula
             Log("Stop", null);
         }
 
-        private static bool running, schemeSet;
+        private static bool running, schemeSet, cmdOnly;
         private static readonly string dumpTrigger = Path.Combine(Path.GetTempPath(), "GxDracula.dump");
 
         private static void Tick()
@@ -210,10 +217,13 @@ namespace GxDracula
             if (!running) return;
             try
             {
-                if (File.Exists(dumpTrigger)) { File.Delete(dumpTrigger); Dump(); }
-                if (File.Exists(cmdFile)) { string cmd = File.ReadAllText(cmdFile).Trim(); File.Delete(cmdFile); RunCommand(cmd); }
-                if (!schemeSet) { schemeSet = true; RunCommand("scheme Black"); }
-                if (File.Exists(islOnly)) return;
+                // Gatilhos por processo (GxDracula.<pid>.cmd/.dump) para testar numa 2ª IDE sem tocar na do usuário.
+                foreach (string d in new[] { PidFile(dumpTrigger), dumpTrigger })
+                    if (File.Exists(d)) { File.Delete(d); Dump(); break; }
+                foreach (string cf in new[] { PidFile(cmdFile), cmdFile })
+                    if (File.Exists(cf)) { string cmd = File.ReadAllText(cf).Trim(); File.Delete(cf); RunCommand(cmd); break; }
+                if (!schemeSet && !cmdOnly) { schemeSet = true; RunCommand("scheme Black"); }
+                if (cmdOnly || IslOnly()) return;
                 foreach (Form f in Application.OpenForms) Apply(f);
                 ThemeBrowsers();
                 ThemeCrownTabs();
@@ -463,6 +473,13 @@ namespace GxDracula
                     }
                 return;
             }
+            if (cmd == "docs")
+            {
+                // docs: título de cada documento aberto (o "*" de alterado aparece no texto da janela MDI).
+                foreach (Form f in Application.OpenForms)
+                    foreach (Form m in f.MdiChildren) Log("docs [" + m.Text + "]", null);
+                return;
+            }
             if (cmd.StartsWith("isl ")) { LoadIsl(cmd.Substring(4)); return; }
             if (!cmd.StartsWith("tab ")) return;
             string title = cmd.Substring(4);
@@ -475,9 +492,18 @@ namespace GxDracula
             {
                 IList pages = Get(c, "TabPages") as IList;
                 if (pages != null)
-                    for (int i = 0; i < pages.Count; i++)
-                        if (string.Equals(Get(pages[i], "Title") as string, title, StringComparison.OrdinalIgnoreCase))
-                        { TrySet(c, "SelectedIndex", i); Log("tab " + title + " -> " + i, null); }
+                {
+                    string all = "";
+                    bool hit = false;
+                    for (int i = 0; i < pages.Count && !hit; i++)
+                    {
+                        string t = ((Get(pages[i], "Title") as string) ?? "").Trim();
+                        all += " [" + t + "]";
+                        if (string.Equals(t, title, StringComparison.OrdinalIgnoreCase))
+                        { hit = true; TrySet(c, "SelectedIndex", i); Log("tab " + title + " -> " + i + " sel=" + Get(c, "SelectedIndex"), null); }
+                    }
+                    if (!hit && pages.Count > 0) Log("tab " + title + ": sem match em" + all, null);
+                }
             }
             foreach (Control k in c.Controls) SelectTab(k, title);
         }

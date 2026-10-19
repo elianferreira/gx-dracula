@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Reflection;
 using System.Windows.Forms;
@@ -11,7 +11,9 @@ namespace GxDracula
     {
         // %APPDATA%\GxDracula.islonly: só o .isl, sem a varredura de controles (para comparar).
         private static readonly string islOnly = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GxDracula.islonly");
-        private static readonly bool islOnlyOn = File.Exists(islOnly);
+        // GxDracula.islonly.<pid> vale só para aquele processo (A/B numa 2ª IDE).
+        private static bool IslOnly() { return File.Exists(islOnly) || File.Exists(islOnly + "." + System.Diagnostics.Process.GetCurrentProcess().Id); }
+        private static string PidFile(string path) { return Path.ChangeExtension(path, System.Diagnostics.Process.GetCurrentProcess().Id + Path.GetExtension(path)); }
         private static readonly string islPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"GxDracula\GxDracula.isl");
 
         // isl <caminho> | isl dracula | isl silver
