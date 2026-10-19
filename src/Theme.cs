@@ -1172,7 +1172,15 @@ namespace GxDracula
         {
             tc.BackColor = Dracula.Darker;
             if (tc.IsHandleCreated) TabFramePainter.Attach(tc); else tc.HandleCreated += delegate { TabFramePainter.Attach(tc); };
-            if (tc.DrawMode == TabDrawMode.OwnerDrawFixed) return;
+            // Recarga a quente: o handler da versão anterior do tema continua pendurado; troca pelo atual.
+            FieldInfo fd = typeof(TabControl).GetField("onDrawItem", BindingFlags.NonPublic | BindingFlags.Instance);
+            Delegate old = fd == null ? null : fd.GetValue(tc) as Delegate;
+            if (old != null)
+            {
+                foreach (Delegate one in old.GetInvocationList())
+                    if (one.Method.DeclaringType == null || !one.Method.DeclaringType.Assembly.GetName().Name.StartsWith("GxDracula")) return;
+                fd.SetValue(tc, null);
+            }
             tc.DrawMode = TabDrawMode.OwnerDrawFixed;
             tc.DrawItem += delegate(object s, DrawItemEventArgs e)
             {
@@ -1183,7 +1191,7 @@ namespace GxDracula
                 using (SolidBrush b = new SolidBrush(Dracula.Darker)) e.Graphics.FillRectangle(b, Rectangle.Inflate(r, 2, 2));
                 using (SolidBrush b = new SolidBrush(sel ? Dracula.Background : Dracula.Darker)) e.Graphics.FillRectangle(b, r);
                 if (sel) using (Pen p = new Pen(Dracula.Purple, 2)) e.Graphics.DrawLine(p, r.Left, r.Bottom - 1, r.Right, r.Bottom - 1);
-                TextRenderer.DrawText(e.Graphics, tc.TabPages[e.Index].Text, tc.Font, r, sel ? Dracula.Foreground : Dracula.Comment,
+                TextRenderer.DrawText(e.Graphics, tc.TabPages[e.Index].Text, tc.Font, r, Dracula.Foreground,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
             };
             tc.Invalidate();
@@ -1208,7 +1216,7 @@ namespace GxDracula
                     using (Pen p = new Pen(Dracula.CurrentLine)) g.DrawRectangle(p, frame);
                     Rectangle last = tc.GetTabRect(tc.TabCount - 1);
                     using (SolidBrush b = new SolidBrush(Dracula.Darker))
-                        g.FillRectangle(b, Rectangle.FromLTRB(last.Right + 1, 0, tc.Width, frame.Top));
+                        g.FillRectangle(b, Rectangle.FromLTRB(last.Right + 1, 0, tc.Width, Math.Max(frame.Top, last.Bottom + 2)));
                     for (int i = 0; i < tc.TabCount; i++)
                     {
                         Rectangle r = tc.GetTabRect(i);
