@@ -42,11 +42,20 @@ namespace GxDracula
         public DrawPhase GetPhasesToFilter(ref UIElementDrawParams p)
         {
             if (Literal(p.Element) != '\0') return DrawPhase.BeforeDrawForeground;
+            // Borda clara a cada 2 linhas nas grids do Team Development: some sem depender de qual Appearance a traz.
+            if (RowBorder(p.Element)) return DrawPhase.BeforeDrawBorders;
             return Ours(p.Element) ? DrawPhase.BeforeDrawElement : DrawPhase.None;
+        }
+
+        private static bool RowBorder(UIElement e)
+        {
+            string n = e.GetType().Name;
+            return n == "RowUIElement" || n == "RowCellAreaUIElement" || n == "RowAutoPreviewUIElement";
         }
 
         public bool DrawElement(DrawPhase phase, ref UIElementDrawParams p)
         {
+            if (phase == DrawPhase.BeforeDrawBorders) return true;
             if (phase == DrawPhase.BeforeDrawForeground)
             {
                 char ch = Literal(p.Element);
