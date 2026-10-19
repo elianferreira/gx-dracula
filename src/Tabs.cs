@@ -107,6 +107,34 @@ namespace GxDracula
 
         // ---------- abas das parts (Crownwood MultiBox) ----------
 
+        // Lido no MagicLocalLibrary descompilado: TabPage nasce com ColorTab = White e OnSystemColorsChanged chama
+        // DefineBackColor(DefaultBackColor), que recalcula _backLight*/_backIDE em cinza claro. Sem os ganchos, a aba nova
+        // ou a faixa inteira ficava clara até o próximo tick (700 ms) ao trocar de objeto/part.
+        private static void HookCrownTabs(Control c)
+        {
+            object pages = Get(c, "TabPages");
+            EventInfo ins = pages == null ? null : pages.GetType().GetEvent("Inserted");
+            if (ins != null)
+                try { ins.AddEventHandler(pages, Delegate.CreateDelegate(ins.EventHandlerType, typeof(Theme).GetMethod("CrownPageInserted", BindingFlags.Static | BindingFlags.NonPublic))); }
+                catch (Exception ex) { Log("tabs: inserted", ex); }
+            c.SystemColorsChanged += delegate
+            {
+                if (!running) return;
+                c.BackColor = Dracula.Darker;
+                SetField(c, "_backIDE", Dracula.Darker);
+                SetField(c, "_backLight", Dracula.Background);
+                SetField(c, "_backLightLight", Dracula.Background);
+                SetField(c, "_backDark", Dracula.Darkest);
+                SetField(c, "_backDarkDark", Dracula.Darkest);
+                c.Invalidate();
+            };
+        }
+
+        private static void CrownPageInserted(int index, object page)
+        {
+            if (running) TrySet(page, "ColorTab", Dracula.Darker);
+        }
+
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Control, CrownTabPainter> crownPainters =
             new System.Runtime.CompilerServices.ConditionalWeakTable<Control, CrownTabPainter>();
 

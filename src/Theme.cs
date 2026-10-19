@@ -569,6 +569,7 @@ namespace GxDracula
                 SetField(c, "_backDark", Dracula.Darkest);
                 SetField(c, "_backDarkDark", Dracula.Darkest);
                 crownTabs.Add(new WeakReference(c));
+                HookCrownTabs(c);
                 c.Invalidate();
             }
             else if (c is TabControl) ThemeWinTabs((TabControl)c);
