@@ -332,14 +332,14 @@ namespace GxDracula
             private static readonly System.Collections.Generic.HashSet<IntPtr> done = new System.Collections.Generic.HashSet<IntPtr>();
             private readonly ComboBox co;
             public static void Attach(ComboBox c) { if (c.IsHandleCreated && done.Add(c.Handle)) new OwnerComboPainter(c); }
-            private OwnerComboPainter(ComboBox c) { co = c; AssignHandle(c.Handle); c.HandleDestroyed += delegate { done.Remove(co.Handle); ReleaseHandle(); }; c.Invalidate(); }
+            private OwnerComboPainter(ComboBox c) { co = c; Track(this); AssignHandle(c.Handle); c.HandleDestroyed += delegate { done.Remove(co.Handle); ReleaseHandle(); }; c.Invalidate(); }
 
             [StructLayout(LayoutKind.Sequential)]
             private struct DRAWITEMSTRUCT { public int CtlType, CtlID, itemID, itemAction, itemState; public IntPtr hwndItem, hDC; public int l, t, r, b; public IntPtr itemData; }
 
             protected override void WndProc(ref Message m)
             {
-                if (m.Msg != 0x202B) { base.WndProc(ref m); return; }
+                if (m.Msg != 0x202B || !running) { base.WndProc(ref m); return; }
                 DRAWITEMSTRUCT d = (DRAWITEMSTRUCT)Marshal.PtrToStructure(m.LParam, typeof(DRAWITEMSTRUCT));
                 Rectangle r = Rectangle.FromLTRB(d.l, d.t, d.r, d.b);
                 bool sel = (d.itemState & 0x1) != 0 && (d.itemState & 0x1000) == 0;
@@ -532,7 +532,7 @@ namespace GxDracula
 
             public Overpaint(Control c, bool scroll)
             {
-                this.c = c; this.scroll = scroll;
+                this.c = c; this.scroll = scroll; Track(this);
                 done.Add(c.Handle); AssignHandle(c.Handle);
                 c.HandleDestroyed += delegate { done.Remove(Handle); ReleaseHandle(); };
                 c.Invalidate();
@@ -622,7 +622,7 @@ namespace GxDracula
 
             public ThumbPainter(Control c)
             {
-                this.c = c;
+                this.c = c; Track(this);
                 if (c.IsHandleCreated) Attach();
                 c.HandleCreated += delegate { Attach(); };
                 c.HandleDestroyed += delegate { done.Remove(Handle); ReleaseHandle(); };

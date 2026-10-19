@@ -124,14 +124,14 @@ namespace GxDracula
             if (df is DraculaDrawFilter || df is ChainDrawFilter) return;
             while (df != null && df.GetType().FullName.StartsWith("GxDracula."))
                 df = df.GetType().GetField("Inner") == null ? null : df.GetType().GetField("Inner").GetValue(df);
-            try { TrySet(grid, "DrawFilter", df == null ? (object)DraculaDrawFilter.Instance : new ChainDrawFilter((IUIElementDrawFilter)df)); }
+            try { TrySet(grid, "DrawFilter", df == null ? (object)DraculaDrawFilter.Instance : new ChainDrawFilter((IUIElementDrawFilter)df)); TrackFilter(grid); }
             catch (Exception ex) { Log("chainfilter", ex); }
         }
 
         // Isolado num método próprio: só toca nos tipos do Infragistics quando há um componente Infragistics.
         private static void SetDrawFilter(object target)
         {
-            try { TrySet(target, "DrawFilter", DraculaDrawFilter.Instance); }
+            try { TrySet(target, "DrawFilter", DraculaDrawFilter.Instance); TrackFilter(target); }
             catch (Exception ex) { Log("drawfilter", ex); }
         }
     }

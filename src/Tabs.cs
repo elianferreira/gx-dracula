@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
@@ -159,7 +159,7 @@ namespace GxDracula
 
             public CrownTabPainter(Control c)
             {
-                this.c = c;
+                this.c = c; Track(this);
                 Type t = c.GetType();
                 for (; t != null && rectsF == null; t = t.BaseType)
                 {

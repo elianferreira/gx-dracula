@@ -206,7 +206,61 @@ namespace GxDracula
             if (timer != null) timer.Stop();
             if (showHook != IntPtr.Zero) { UnhookWindowsHookEx(showHook); showHook = IntPtr.Zero; }
             if (msgHook != IntPtr.Zero) { UnhookWindowsHookEx(msgHook); msgHook = IntPtr.Zero; }
-            Log("Stop", null);
+            // Recarga a quente: a versão velha não pode continuar pintando por baixo da nova (repintura dupla, e suspeita
+            // dos crashes 0xc0020001 após recargas). Solta subclasses, DrawFilters e handlers deste assembly.
+            int nw = 0, nf = 0, nh = 0;
+            foreach (NativeWindow w in natives.ToArray())
+                try { if (w.Handle != IntPtr.Zero) { w.ReleaseHandle(); nw++; } } catch (Exception ex) { Log("Stop native", ex); }
+            natives.Clear();
+            foreach (WeakReference r in filtered.ToArray())
+            {
+                object o = r.Target;
+                if (o == null) continue;
+                try
+                {
+                    object df = Get(o, "DrawFilter");
+                    if (df is DraculaDrawFilter) { TrySet(o, "DrawFilter", null); nf++; }
+                    else if (df is ChainDrawFilter) { TrySet(o, "DrawFilter", ((ChainDrawFilter)df).Inner); nf++; }
+                }
+                catch (Exception ex) { Log("Stop drawfilter", ex); }
+            }
+            filtered.Clear();
+            foreach (object c in new List<object>(seen))
+                if (c is System.ComponentModel.Component) nh += StripHandlers((System.ComponentModel.Component)c);
+            Log("Stop: soltou " + nw + " subclasses, " + nf + " drawfilters, " + nh + " handlers", null);
+        }
+
+        private static readonly List<NativeWindow> natives = new List<NativeWindow>();
+        private static readonly List<WeakReference> filtered = new List<WeakReference>();
+        internal static void Track(NativeWindow w) { natives.Add(w); }
+        internal static void TrackFilter(object target) { filtered.Add(new WeakReference(target)); }
+
+        // Remove do EventHandlerList do componente todo delegate cujo método é deste assembly (handlers da versão que sai).
+        private static int StripHandlers(System.ComponentModel.Component comp)
+        {
+            int n = 0;
+            try
+            {
+                PropertyInfo evp = typeof(System.ComponentModel.Component).GetProperty("Events", BindingFlags.NonPublic | BindingFlags.Instance);
+                System.ComponentModel.EventHandlerList ev = (System.ComponentModel.EventHandlerList)evp.GetValue(comp, null);
+                FieldInfo headF = typeof(System.ComponentModel.EventHandlerList).GetField("head", BindingFlags.NonPublic | BindingFlags.Instance);
+                object e = headF == null ? null : headF.GetValue(ev);
+                List<KeyValuePair<object, Delegate>> kill = new List<KeyValuePair<object, Delegate>>();
+                Assembly me = typeof(Theme).Assembly;
+                while (e != null)
+                {
+                    Type et = e.GetType();
+                    object key = et.GetField("key", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(e);
+                    Delegate d = et.GetField("handler", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(e) as Delegate;
+                    if (d != null)
+                        foreach (Delegate one in d.GetInvocationList())
+                            if (one.Method.DeclaringType != null && one.Method.DeclaringType.Assembly == me) kill.Add(new KeyValuePair<object, Delegate>(key, one));
+                    e = et.GetField("next", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(e);
+                }
+                foreach (KeyValuePair<object, Delegate> k in kill) { ev.RemoveHandler(k.Key, k.Value); n++; }
+            }
+            catch (Exception ex) { Log("StripHandlers", ex); }
+            return n;
         }
 
         private static bool running, schemeSet, cmdOnly;
@@ -1294,7 +1348,7 @@ namespace GxDracula
             private readonly Control c;
             public BorderPainter(Control c)
             {
-                this.c = c;
+                this.c = c; Track(this);
                 if (c.IsHandleCreated) AssignHandle(c.Handle);
                 c.HandleCreated += delegate { AssignHandle(c.Handle); };
                 c.HandleDestroyed += delegate { ReleaseHandle(); };
@@ -1303,6 +1357,11 @@ namespace GxDracula
             {
                 base.WndProc(ref m);
                 if (m.Msg != 0x000F || !running) return;
+                try { Paint(); } catch (Exception ex) { Log("BorderPainter", ex); }
+            }
+
+            private void Paint()
+            {
                 using (Graphics g = Graphics.FromHwnd(c.Handle))
                 using (Pen p = new Pen(Dracula.CurrentLine))
                 using (Pen q = new Pen(Dracula.Background))
@@ -1410,11 +1469,16 @@ namespace GxDracula
             private static readonly System.Collections.Generic.HashSet<IntPtr> done = new System.Collections.Generic.HashSet<IntPtr>();
             private readonly TabControl tc;
             public static void Attach(TabControl t) { if (done.Add(t.Handle)) { new TabFramePainter(t); t.Invalidate(); } }
-            private TabFramePainter(TabControl t) { tc = t; AssignHandle(t.Handle); t.HandleDestroyed += delegate { done.Remove(tc.Handle); ReleaseHandle(); }; }
+            private TabFramePainter(TabControl t) { tc = t; Track(this); AssignHandle(t.Handle); t.HandleDestroyed += delegate { done.Remove(tc.Handle); ReleaseHandle(); }; }
             protected override void WndProc(ref Message m)
             {
                 base.WndProc(ref m);
-                if (m.Msg != 0x000F || tc.TabCount == 0) return;
+                if (m.Msg != 0x000F || !running || tc.TabCount == 0) return;
+                try { Paint(); } catch (Exception ex) { Log("TabFramePainter", ex); }
+            }
+
+            private void Paint()
+            {
                 using (Graphics g = Graphics.FromHwnd(tc.Handle))
                 {
                     Rectangle d = tc.DisplayRectangle;
