@@ -1,0 +1,33 @@
+GxDracula - tema Dracula para a IDE do GeneXus 18
+==================================================
+
+INSTALAR
+1. Extraia o GxDracula.zip inteiro (nao rode de dentro do zip).
+2. Feche a IDE do GeneXus (salve o trabalho antes).
+3. Na pasta GxDracula, clique com o botao direito em install.ps1 > "Executar com PowerShell".
+   Ou, num PowerShell aberto na pasta:
+       powershell -ExecutionPolicy Bypass -File install.ps1
+4. Aceite o aviso do UAC (pede admin so para copiar para a pasta do GeneXus).
+   O instalador tambem instala a fonte Inter (menus) para o seu usuario.
+5. Abra o GeneXus 18.
+
+OPCOES DO install.ps1
+  -GeneXusPath 'D:\GeneXus18'   se o GeneXus nao estiver em Program Files (x86)\GeneXus\GeneXus18
+  -LiberarPreviewWWP            libera escrita na pasta de preview do WorkWithPlus
+                                (corrige o "Access denied ... .css" e o preview em branco do Patterns)
+  -DryRun                       so mostra o que faria, sem alterar nada
+
+DESLIGAR
+  Tema inteiro:          crie o arquivo vazio %APPDATA%\GxDracula.disabled e reabra a IDE
+  So os icones:          crie o arquivo vazio %APPDATA%\GxDracula.icons.disabled
+  Apague o arquivo para religar.
+
+ATUALIZAR
+  Troque GxDracula.Theme.dll em %LOCALAPPDATA%\GxDracula. A IDE aberta recarrega sozinha em ~2 s.
+
+DESINSTALAR
+  Feche a IDE e rode uninstall.ps1 (botao direito > Executar com PowerShell).
+
+PROBLEMAS
+  Log do tema: %TEMP%\GxDracula.log
+  Manual completo: MANUAL.md dentro do zip.
