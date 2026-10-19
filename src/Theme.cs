@@ -657,6 +657,8 @@ namespace GxDracula
                 "#gxdr-welcome p{margin:8px 0 0;color:#8BE9FD!important;font:15px 'Inter','Segoe UI',sans-serif;letter-spacing:.3px}" +
                 "table{border-collapse:separate!important;border-spacing:0;border-radius:10px;overflow:hidden}" +
                 "tr:hover td{background:#44475A!important}" +
+                // O fundo vai só na célula: o conteúdo dela fica transparente (senão vira uma caixa escura no hover).
+                "td *,th *{background-color:transparent!important}" +
                 // Hover dos menus: o site troca fundo/borda no :hover; fica um realce Dracula estável.
                 "nav a,nav li,ul li,ul li a{transition:none!important;border-color:transparent!important}" +
                 "nav a:hover,ul li a:hover{background-color:#44475A!important;color:#BD93F9!important;border-radius:6px}" +
