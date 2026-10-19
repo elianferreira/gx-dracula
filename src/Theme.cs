@@ -383,7 +383,9 @@ namespace GxDracula
                 c.BackColor = Dracula.Background;
                 c.ForeColor = Dracula.Foreground;
                 if (c is TextBoxBase) ((TextBoxBase)c).BorderStyle = BorderStyle.FixedSingle;
-                if (c is TreeView) ((TreeView)c).LineColor = Dracula.Comment;
+                if (c is TreeView) { ((TreeView)c).LineColor = Dracula.Comment; DarkTreeSelection((TreeView)c); }
+                // Caixa de busca de toolstrip (Options): a moldura FixedSingle sai clara.
+                if (c is TextBoxBase && c.Parent is ToolStrip) ((TextBoxBase)c).BorderStyle = BorderStyle.None;
                 if (c is ComboBox) ((ComboBox)c).FlatStyle = FlatStyle.Flat;
             }
             else if (c is ToolStrip)
@@ -1131,6 +1133,25 @@ namespace GxDracula
 
         // Scrollbar é área não-cliente: Invalidate não repinta; RDW_FRAME | RDW_INVALIDATE | RDW_UPDATENOW.
         private static void RedrawFrame(Control c) { RedrawWindow(c.Handle, IntPtr.Zero, IntPtr.Zero, 0x0400 | 0x0001 | 0x0100 | 0x0080); }
+
+        // Seleção do TreeView nativo sai no azul do sistema (Options): desenha o texto do nó.
+        // Só em árvores sem owner-draw próprio, para não brigar com quem já desenha.
+        private static void DarkTreeSelection(TreeView t)
+        {
+            if (t.DrawMode != TreeViewDrawMode.Normal) return;
+            t.HideSelection = false;
+            t.DrawMode = TreeViewDrawMode.OwnerDrawText;
+            t.DrawNode += delegate(object s, DrawTreeNodeEventArgs e)
+            {
+                if (e.Bounds.IsEmpty) return;
+                bool sel = (e.State & TreeNodeStates.Selected) != 0;
+                Rectangle r = new Rectangle(e.Bounds.X, e.Bounds.Y, e.Bounds.Width + 4, e.Bounds.Height);
+                using (SolidBrush b = new SolidBrush(sel ? Dracula.CurrentLine : t.BackColor)) e.Graphics.FillRectangle(b, r);
+                Font f = e.Node.NodeFont ?? t.Font;
+                TextRenderer.DrawText(e.Graphics, e.Node.Text, f, r, sel ? Dracula.Purple : Dracula.Foreground,
+                    TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPrefix);
+            };
+        }
 
         private static void NativeDark(Control c, string theme)
         {
