@@ -656,7 +656,11 @@ namespace GxDracula
                 "#gxdr-welcome h1 span{color:#BD93F9!important}" +
                 "#gxdr-welcome p{margin:8px 0 0;color:#8BE9FD!important;font:15px 'Inter','Segoe UI',sans-serif;letter-spacing:.3px}" +
                 "table{border-collapse:separate!important;border-spacing:0;border-radius:10px;overflow:hidden}" +
-                "tr:hover td{background:#44475A!important}th{background:#21222C!important}";
+                "tr:hover td{background:#44475A!important}" +
+                // Hover dos menus: o site troca fundo/borda no :hover; fica um realce Dracula estável.
+                "nav a,nav li,ul li,ul li a{transition:none!important;border-color:transparent!important}" +
+                "nav a:hover,ul li a:hover{background-color:#44475A!important;color:#BD93F9!important;border-radius:6px}" +
+                "ul li:hover{background-color:transparent!important}th{background:#21222C!important}";
             string html = logo + (logo.Length > 0 ? "<div class=\"sep\"></div>" : "") +
                 "<div><h1>Bem-vindo ao <span>GeneXus</span></h1><p>Univali · Sistemas — bom trabalho!</p></div>";
             startScript = "(function(){if(location.host.indexOf('genexus.com')<0||!document.body)return;" +
@@ -666,7 +670,8 @@ namespace GxDracula
                 "var n=document.querySelector('nav,header,ul');var at=n?n.parentNode:document.body;at.insertBefore(d,n?n.nextSibling:at.firstChild);}" +
                 "Array.prototype.forEach.call(document.querySelectorAll('h2,h3,div'),function(e){if(/^\\s*TOP NEWS\\s*$/i.test(e.textContent)){var p=e.parentNode;if(p&&p.textContent.replace(/\\s/g,'').length<20)p.style.display='none';else e.style.display='none';var x=p&&p.nextElementSibling;if(x&&!x.textContent.trim())x.style.display='none';}});" +
                 // Fundo branco que o CSS não vence (estilo inline com !important): força inline no html, body e em quem for claro.
-                "[document.documentElement,document.body].concat(Array.prototype.slice.call(document.querySelectorAll('body *'))).forEach(function(e){if(e.id&&e.id.indexOf('gxdr')==0||e.closest&&e.closest('#gxdr-welcome'))return;" +
+                "var dg=document.getElementById('gxdr-diag');if(dg)dg.parentNode.removeChild(dg);" +
+                "[document.documentElement,document.body].concat(Array.prototype.slice.call(document.querySelectorAll('body *'))).forEach(function(e){if(e.id&&e.id.indexOf('gxdr')==0||e.closest&&e.closest('#gxdr-welcome')||e.matches&&e.matches(':hover'))return;" +
                 "var m=/rgba?\\((\\d+), (\\d+), (\\d+)(, ([\\d.]+))?\\)/.exec(getComputedStyle(e).backgroundColor);" +
                 "if(e===document.documentElement||e===document.body||m&&(+m[1]+ +m[2]+ +m[3])>600&&(!m[5]||+m[5]>0))e.style.setProperty('background','#282A36','important');});" +
                 // Caixa de notícias vazia: bloco sem texto nem imagem.
