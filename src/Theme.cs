@@ -93,17 +93,6 @@ namespace GxDracula
             showHook = SetWindowsHookEx(4 /* WH_CALLWNDPROC */, showHookProc, IntPtr.Zero, GetCurrentThreadId());
         }
 
-        private static void Retheme(Control c)
-        {
-            try
-            {
-                ThemeControl(c);
-                if (InheritsFrom(c, "Infragistics") && c.GetType().Namespace != null && c.GetType().Namespace.StartsWith("Artech")) StyleScrollLook(c);
-            }
-            catch (Exception ex) { Log("Retheme " + c.GetType().FullName, ex); }
-            foreach (Control k in c.Controls) Retheme(k);
-        }
-
         private delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
         private static HookProc showHookProc;
         private static IntPtr showHook;
@@ -125,11 +114,11 @@ namespace GxDracula
                         Form f = Control.FromHandle(m.hwnd) as Form;
                         if (f != null)
                         {
-                            if (!seen.Contains(f)) { Apply(f); AttachThumbs(f); }
-                            // Grids terminam de montar o layout depois do show e o diálogo é reaproveitado a cada abertura
-                            // (InitializeLayout repõe o branco): repassa o tema em toda exibição, com a janela já de pé.
+                            // Medido: tema aplicado DENTRO do WM_SHOWWINDOW (e reaplicado a cada abertura) deixava a grid da
+                            // Select Objects branca. Mensagem postada roda logo depois do show e antes do WM_PAINT (prioridade
+                            // baixa): mesmo efeito do Tick, sem esperar 700 ms.
                             Form ff = f;
-                            ff.BeginInvoke((MethodInvoker)delegate { Retheme(ff); AttachThumbs(ff); ff.Invalidate(true); });
+                            if (!seen.Contains(ff)) ff.BeginInvoke((MethodInvoker)delegate { Apply(ff); AttachThumbs(ff); });
                         }
                     }
                 }
