@@ -643,20 +643,30 @@ namespace GxDracula
             {
                 string f = System.IO.Path.Combine(dir, "logo." + ext);
                 if (!System.IO.File.Exists(f)) continue;
-                logo = "<img src=\"data:image/" + (ext == "svg" ? "svg+xml" : "png") + ";base64," + Convert.ToBase64String(System.IO.File.ReadAllBytes(f)) + "\" style=\"height:64px;margin-right:24px\">";
+                logo = "<img src=\"data:image/" + (ext == "svg" ? "svg+xml" : "png") + ";base64," + Convert.ToBase64String(System.IO.File.ReadAllBytes(f)) + "\" style=\"height:88px;margin-right:28px\">";
                 break;
             }
-            string css = "html,body,div,section,header,nav,table,td,th,tr,p,span,li,strong,b,label{background-color:#282A36!important;color:#F8F8F2!important;border-color:#44475A!important}" +
+            string css = "html,body{background:#282A36!important}body *{background-color:transparent!important;background-image:none!important;box-shadow:none}html,body,div,section,header,nav,table,td,th,tr,p,span,li,strong,b,label{background-color:#282A36!important;color:#F8F8F2!important;border-color:#44475A!important}" +
                 "a{color:#FF79C6!important}a:hover{color:#BD93F9!important}h1,h2,h3,h4,th{color:#BD93F9!important}" +
-                "img,svg{filter:none}#gxdr-welcome{display:flex;align-items:center;padding:28px 0 12px 134px}" +
-                "#gxdr-welcome h1{font:600 30px 'Inter','Segoe UI',sans-serif;margin:0;color:#F8F8F2!important}" +
-                "#gxdr-welcome p{margin:6px 0 0;color:#6272A4!important;font:15px 'Inter','Segoe UI',sans-serif}";
-            string html = logo + "<div><h1>Bem-vindo ao GeneXus</h1><p>Univali · Sistemas</p></div>";
+                "img,svg{filter:none}#gxdr-welcome{display:flex;align-items:center;margin:28px 134px 8px;padding:28px 36px;border-radius:14px;" +
+                "background:linear-gradient(120deg,#44475A 0%,#282A36 70%)!important;border:1px solid #6272A4!important;box-shadow:0 8px 28px rgba(0,0,0,.35)}" +
+                "#gxdr-welcome *{background:transparent!important}" +
+                "#gxdr-welcome .sep{width:1px;height:72px;background:#6272A4!important;margin-right:28px}" +
+                "#gxdr-welcome h1{font:600 32px 'Inter','Segoe UI',sans-serif;margin:0;color:#F8F8F2!important}" +
+                "#gxdr-welcome h1 span{color:#BD93F9!important}" +
+                "#gxdr-welcome p{margin:8px 0 0;color:#8BE9FD!important;font:15px 'Inter','Segoe UI',sans-serif;letter-spacing:.3px}" +
+                "table{border-collapse:separate!important;border-spacing:0;border-radius:10px;overflow:hidden}" +
+                "tr:hover td{background:#44475A!important}th{background:#21222C!important}";
+            string html = logo + (logo.Length > 0 ? "<div class=\"sep\"></div>" : "") +
+                "<div><h1>Bem-vindo ao <span>GeneXus</span></h1><p>Univali · Sistemas — bom trabalho!</p></div>";
             startScript = "(function(){if(location.host.indexOf('genexus.com')<0||!document.body)return;" +
                 "var s=document.getElementById('gxdr-css');if(!s){s=document.createElement('style');s.id='gxdr-css';document.head.appendChild(s);}s.textContent=" + JsStr(css) + ";" +
-                "if(!document.getElementById('gxdr-welcome')){var d=document.createElement('div');d.id='gxdr-welcome';d.innerHTML=" + JsStr(html) + ";" +
+                "var o=document.getElementById('gxdr-welcome');if(o&&o.getAttribute('data-v')!='" + html.GetHashCode() + "'){o.parentNode.removeChild(o);o=null;}" +
+                "if(!o){var d=document.createElement('div');d.id='gxdr-welcome';d.setAttribute('data-v','" + html.GetHashCode() + "');d.innerHTML=" + JsStr(html) + ";" +
                 "var n=document.querySelector('nav,header,ul');var at=n?n.parentNode:document.body;at.insertBefore(d,n?n.nextSibling:at.firstChild);}" +
-                "Array.prototype.forEach.call(document.querySelectorAll('h2,h3,div'),function(e){if(/^\\s*TOP NEWS\\s*$/i.test(e.textContent)){var p=e.parentNode;if(p&&p.textContent.replace(/\\s/g,'').length<20)p.style.display='none';else e.style.display='none';var x=p&&p.nextElementSibling;if(x&&!x.textContent.trim())x.style.display='none';}});})();";
+                "Array.prototype.forEach.call(document.querySelectorAll('h2,h3,div'),function(e){if(/^\\s*TOP NEWS\\s*$/i.test(e.textContent)){var p=e.parentNode;if(p&&p.textContent.replace(/\\s/g,'').length<20)p.style.display='none';else e.style.display='none';var x=p&&p.nextElementSibling;if(x&&!x.textContent.trim())x.style.display='none';}});" +
+                // Caixa de notícias vazia: bloco sem texto nem imagem.
+                "Array.prototype.forEach.call(document.querySelectorAll('div,section'),function(e){if(e.id.indexOf('gxdr')==0||e.textContent.trim()||e.querySelector('img,svg,iframe'))return;var h=e.offsetHeight;if(h>20&&h<200)e.style.display='none';});})();";
             return startScript;
         }
 
