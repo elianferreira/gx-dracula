@@ -157,7 +157,9 @@ namespace GxDracula
             TrySetEnumByName(ov, "RowSelectors", "False");
             IgApp(Get(ov, "MaskLiteralsAppearance"), Dracula.Background, Dracula.Foreground);
             object df = Get(k, "DrawFilter");
-            if (df == null) SetDrawFilter(k);
+            // Filtro de uma versão anterior do tema (recarga a quente = outro assembly): troca pelo atual,
+            // senão a grid fica com o desenho antigo (a borda a cada 2 linhas "voltava").
+            if (df == null || !(df is DraculaDrawFilter) && df.GetType().FullName == typeof(DraculaDrawFilter).FullName) SetDrawFilter(k);
             else if (!(df is DraculaDrawFilter)) Log("grid " + k.Name + " já tem DrawFilter " + df.GetType().FullName, null);
             TrySet(ov, "DefaultRowHeight", 26);
             System.Collections.IEnumerable bands = Get(dl, "Bands") as System.Collections.IEnumerable;

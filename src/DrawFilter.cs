@@ -50,7 +50,7 @@ namespace GxDracula
         private static bool RowBorder(UIElement e)
         {
             string n = e.GetType().Name;
-            return n == "RowUIElement" || n == "RowCellAreaUIElement" || n == "RowAutoPreviewUIElement";
+            return n == "RowUIElement" || n == "RowCellAreaUIElement" || n == "RowAutoPreviewUIElement" || n == "RowColRegionIntersectionUIElement";
         }
 
         public bool DrawElement(DrawPhase phase, ref UIElementDrawParams p)
