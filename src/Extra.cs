@@ -51,7 +51,13 @@ namespace GxDracula
             foreach (Control k in c.Controls)
             {
                 if (k.GetType().Namespace != null && k.GetType().Namespace.StartsWith("Artech") && InheritsFrom(k, "Infragistics") && scrollStyled.Add(k.GetHashCode() ^ 71)) StyleScrollLook(k);
-                if (k.Visible && InheritsFrom(k, "Infragistics.Win.UltraWinGrid")) FixRowAppearances(k);
+                if (k.Visible && InheritsFrom(k, "Infragistics.Win.UltraWinGrid"))
+                {
+                    FixRowAppearances(k);
+                    // Toda grid (não só as de tipo Artech) recebe o filtro atual: sem ele a borda a cada 2 linhas aparece.
+                    object df = Get(k, "DrawFilter");
+                    if (df == null || !(df is DraculaDrawFilter) && df.GetType().FullName == typeof(DraculaDrawFilter).FullName) { SetDrawFilter(k); k.Invalidate(); }
+                }
                 // Editores criados antes do reload (combo Version da History) ficam sem o filtro das setas.
                 if (InheritsFrom(k, "Infragistics.Win.UltraWinEditors") && Get(k, "DrawFilter") == null) { SetDrawFilter(k); k.Invalidate(); }
                 // CheckBox em modo botão (filtro do Team Development): borda branca do sistema.
