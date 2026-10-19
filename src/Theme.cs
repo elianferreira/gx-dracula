@@ -93,6 +93,17 @@ namespace GxDracula
             showHook = SetWindowsHookEx(4 /* WH_CALLWNDPROC */, showHookProc, IntPtr.Zero, GetCurrentThreadId());
         }
 
+        private static void Retheme(Control c)
+        {
+            try
+            {
+                ThemeControl(c);
+                if (InheritsFrom(c, "Infragistics") && c.GetType().Namespace != null && c.GetType().Namespace.StartsWith("Artech")) StyleScrollLook(c);
+            }
+            catch (Exception ex) { Log("Retheme " + c.GetType().FullName, ex); }
+            foreach (Control k in c.Controls) Retheme(k);
+        }
+
         private delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
         private static HookProc showHookProc;
         private static IntPtr showHook;
@@ -112,7 +123,13 @@ namespace GxDracula
                     if (m.message == 0x0018 /* WM_SHOWWINDOW */ && m.wParam != IntPtr.Zero)
                     {
                         Form f = Control.FromHandle(m.hwnd) as Form;
-                        if (f != null && !seen.Contains(f)) { Apply(f); AttachThumbs(f); }
+                        if (f != null && !seen.Contains(f))
+                        {
+                            Apply(f); AttachThumbs(f);
+                            // Grids e listas terminam de montar o layout depois do show (InitializeLayout repõe o branco):
+                            // repassa o tema na árvore inteira quando a janela já está de pé.
+                            f.Shown += delegate { f.BeginInvoke((MethodInvoker)delegate { Retheme(f); AttachThumbs(f); f.Invalidate(true); }); };
+                        }
                     }
                 }
                 catch (Exception ex) { Log("ShowHook", ex); }
