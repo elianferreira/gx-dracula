@@ -123,12 +123,13 @@ namespace GxDracula
                     if (m.message == 0x0018 /* WM_SHOWWINDOW */ && m.wParam != IntPtr.Zero)
                     {
                         Form f = Control.FromHandle(m.hwnd) as Form;
-                        if (f != null && !seen.Contains(f))
+                        if (f != null)
                         {
-                            Apply(f); AttachThumbs(f);
-                            // Grids e listas terminam de montar o layout depois do show (InitializeLayout repõe o branco):
-                            // repassa o tema na árvore inteira quando a janela já está de pé.
-                            f.Shown += delegate { f.BeginInvoke((MethodInvoker)delegate { Retheme(f); AttachThumbs(f); f.Invalidate(true); }); };
+                            if (!seen.Contains(f)) { Apply(f); AttachThumbs(f); }
+                            // Grids terminam de montar o layout depois do show e o diálogo é reaproveitado a cada abertura
+                            // (InitializeLayout repõe o branco): repassa o tema em toda exibição, com a janela já de pé.
+                            Form ff = f;
+                            ff.BeginInvoke((MethodInvoker)delegate { Retheme(ff); AttachThumbs(ff); ff.Invalidate(true); });
                         }
                     }
                 }
