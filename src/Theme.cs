@@ -682,6 +682,7 @@ namespace GxDracula
             // Componentes (UltraToolbarsManager etc.) ficam em campos de qualquer controle da IDE, não só do Form.
             if (!(c is Form) && !ns.StartsWith("System") && !ns.StartsWith("Infragistics")) ThemeComponentsOf(c);
 
+            if (InWwpTabHeader(c)) HookWwpTab(c);
             if (c is StatusBar) ThemeStatusBar((StatusBar)c);
             if (InheritsFrom(c, "DevExpress.XtraTreeList")) { ThemeTreeList(c); HookTreeListDraw(c); }
             if (InheritsFrom(c, "Infragistics.Win.UltraWinEditors"))
@@ -788,6 +789,56 @@ namespace GxDracula
                 }
                 if (changed) c.Invalidate();
             }
+        }
+
+        private static bool InWwpTabHeader(Control c)
+        {
+            for (Control p = c.Parent; p != null; p = p.Parent)
+                if (p.Name == "splitHeader") return true;
+            return false;
+        }
+
+        // Abas do editor WorkWithPlus (Transaction/Selection/Prompt): ao selecionar ou passar o mouse a WWP
+        // pinta o fundo White/#E2EBF7 e o texto Black/Gray depois do tema. A selecionada fica em CurrentLine com
+        // texto rosa; os filhos (texto, ícone) seguem o fundo da aba para não sair em remendo.
+        private static void HookWwpTab(Control c)
+        {
+            bool sep = c is Label && (c.Width <= 1 || c.Height <= 1);            EventHandler back = delegate(object s, EventArgs e)
+            {
+                Control t = (Control)s;
+                if (!running) return;
+                if (sep) { if (t.BackColor != Dracula.CurrentLine) t.BackColor = Dracula.CurrentLine; return; }
+                bool tab = false;
+                foreach (Control k in t.Controls) if (k.Text.Length > 0) tab = true;
+                if (t is Panel && !tab) return;
+                if (!(t is Panel))
+                {
+                    // Texto/ícone da aba: sempre no fundo da aba, senão sai em remendo.
+                    if (t.Parent is Panel && t.BackColor != t.Parent.BackColor) t.BackColor = t.Parent.BackColor;
+                    return;
+                }
+                bool active = t.BackColor.ToArgb() == Color.White.ToArgb() || t.BackColor == Dracula.CurrentLine;
+                Color bg = active ? Dracula.CurrentLine : Dracula.Darker;
+                if (t.BackColor != bg) t.BackColor = bg;
+                foreach (Control k in t.Controls)
+                {
+                    if (k is Label && (k.Width <= 1 || k.Height <= 1)) continue;
+                    if (k.BackColor != bg) k.BackColor = bg;
+                    if (k.Text.Length > 0) k.ForeColor = active ? Dracula.Pink : Dracula.Foreground;
+                }
+            };
+            EventHandler fore = delegate(object s, EventArgs e)
+            {
+                Control t = (Control)s;
+                if (!running || t.ForeColor == Dracula.Foreground || t.ForeColor == Dracula.Pink) return;
+                // Black = aba ativa; Gray e o resto = inativa.
+                Color f = t.ForeColor.ToArgb() == Color.Black.ToArgb() ? Dracula.Pink : Dracula.Foreground;
+                t.ForeColor = f;
+            };
+            c.BackColorChanged += back;
+            c.ForeColorChanged += fore;
+            back(c, EventArgs.Empty);
+            fore(c, EventArgs.Empty);
         }
 
         private static void ThemeSmartPropertyGrid(Control p)
