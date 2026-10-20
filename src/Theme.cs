@@ -819,7 +819,7 @@ namespace GxDracula
 
         private const string MonacoScript =
             "(function(){if(!window.monaco||!monaco.editor)return;" +
-            "if(window.__gxDracula!==2){monaco.editor.defineTheme('gx-dracula',{base:'vs-dark',inherit:true,rules:[" +
+            "if(window.__gxDracula!==3){monaco.editor.defineTheme('gx-dracula',{base:'vs-dark',inherit:true,rules:[" +
             "{token:'',foreground:'F8F8F2'},{token:'comment',foreground:'6272A4'},{token:'string',foreground:'F1FA8C'}," +
             "{token:'number',foreground:'BD93F9'},{token:'keyword',foreground:'FF79C6'},{token:'operator',foreground:'FF79C6'}," +
             "{token:'variable',foreground:'FFB86C'},{token:'type',foreground:'8BE9FD'},{token:'function',foreground:'50FA7B'}," +
@@ -830,11 +830,15 @@ namespace GxDracula
             "'editorLineNumber.activeForeground':'#F8F8F2','editorIndentGuide.background':'#424450','editorWidget.background':'#21222C'," +
             "'scrollbarSlider.background':'#44475A80','scrollbarSlider.hoverBackground':'#6272A480'," +
             // Borda do overview ruler (vs-dark) saía como linha clara vertical no Output.
-            "'editorOverviewRuler.border':'#191A21','editorRuler.foreground':'#44475A','scrollbar.shadow':'#00000000'}});window.__gxDracula=2;}" +
+            "'editorOverviewRuler.border':'#191A21','editorRuler.foreground':'#44475A','scrollbar.shadow':'#00000000'," +
+            "'editorLink.activeForeground':'#FF79C6'}});window.__gxDracula=3;}" +
             "monaco.editor.setTheme('gx-dracula');document.body.style.background='#282A36';" +
             // Medido no Output: o OutputPane.html põe border-left 1px #EEEEEE no minimap (linha clara vertical).
-            "if(!document.getElementById('gxdr-monaco')){var s=document.createElement('style');s.id='gxdr-monaco';" +
-            "s.textContent='.monaco-editor .minimap{border-left-color:#191A21!important}';document.head.appendChild(s);}})();";
+            // Links do Output (registerLinkProvider) saíam azul-escuro, ilegíveis no fundo Dracula.
+            "var s=document.getElementById('gxdr-monaco');if(!s){s=document.createElement('style');s.id='gxdr-monaco';document.head.appendChild(s);}" +
+            "s.textContent='.monaco-editor .minimap{border-left-color:#191A21!important}" +
+            ".monaco-editor .detected-link,.monaco-editor .detected-link *{color:#8BE9FD!important}" +
+            ".monaco-editor .detected-link-active,.monaco-editor .detected-link-active *{color:#FF79C6!important}';})();";
 
         // Start Page (start2.genexus.com): tema escuro e faixa "Bem-vindo" com o logo em %LOCALAPPDATA%\GxDracula\logo.png|svg.
         private static string startScript;
