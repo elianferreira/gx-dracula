@@ -613,7 +613,16 @@ namespace GxDracula
                 if (c is TextBoxBase) ((TextBoxBase)c).BorderStyle = BorderStyle.FixedSingle;
                 if (c is TreeView) { ((TreeView)c).LineColor = Dracula.Comment; DarkTreeSelection((TreeView)c); }
                 // Caixa de busca de toolstrip (Options): a moldura FixedSingle sai clara.
-                if (c is TextBoxBase && c.Parent is ToolStrip) ((TextBoxBase)c).BorderStyle = BorderStyle.None;
+                if (c is TextBoxBase && c.Parent is ToolStrip)
+                {
+                    ((TextBoxBase)c).BorderStyle = BorderStyle.None;
+                    // Filtro do Properties: a IDE volta o fundo para SystemColors.Window e o texto claro some.
+                    c.BackColorChanged += delegate(object s, EventArgs e)
+                    {
+                        Control t = (Control)s;
+                        if (running && t.BackColor != Dracula.Background) t.BackColor = Dracula.Background;
+                    };
+                }
                 if (c is ComboBox) ((ComboBox)c).FlatStyle = FlatStyle.Flat;
             }
             else if (c is ToolStrip)
