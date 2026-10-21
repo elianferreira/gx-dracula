@@ -879,11 +879,14 @@ namespace GxDracula
 
         private const string MonacoScript =
             "(function(){if(!window.monaco||!monaco.editor)return;" +
-            "if(window.__gxDracula!==3){monaco.editor.defineTheme('gx-dracula',{base:'vs-dark',inherit:true,rules:[" +
+            "if(window.__gxDracula!==4){monaco.editor.defineTheme('gx-dracula',{base:'vs-dark',inherit:true,rules:[" +
             "{token:'',foreground:'F8F8F2'},{token:'comment',foreground:'6272A4'},{token:'string',foreground:'F1FA8C'}," +
             "{token:'number',foreground:'BD93F9'},{token:'keyword',foreground:'FF79C6'},{token:'operator',foreground:'FF79C6'}," +
             "{token:'variable',foreground:'FFB86C'},{token:'type',foreground:'8BE9FD'},{token:'function',foreground:'50FA7B'}," +
             "{token:'tag',foreground:'FF79C6'},{token:'attribute.name',foreground:'50FA7B'},{token:'attribute.value',foreground:'F1FA8C'}," +
+            "{token:'custom-error',foreground:'FF5555',fontStyle:'bold'},{token:'custom-warning',foreground:'FFB86C'}," +
+            "{token:'custom-infomsg',foreground:'8BE9FD'},{token:'custom-info',foreground:'6272A4'},{token:'start-section',foreground:'BD93F9'}," +
+            "{token:'gxdr-success',foreground:'50FA7B'}," +
             "{token:'error',foreground:'FF5555'},{token:'warning',foreground:'FFB86C'},{token:'info',foreground:'8BE9FD'}]," +
             "colors:{'editor.background':'#282A36','editor.foreground':'#F8F8F2','editor.lineHighlightBackground':'#44475A75'," +
             "'editor.selectionBackground':'#44475A','editorCursor.foreground':'#F8F8F0','editorLineNumber.foreground':'#6272A4'," +
@@ -891,7 +894,15 @@ namespace GxDracula
             "'scrollbarSlider.background':'#44475A80','scrollbarSlider.hoverBackground':'#6272A480'," +
             // Borda do overview ruler (vs-dark) saía como linha clara vertical no Output.
             "'editorOverviewRuler.border':'#191A21','editorRuler.foreground':'#44475A','scrollbar.shadow':'#00000000'," +
-            "'editorLink.activeForeground':'#FF79C6'}});window.__gxDracula=3;}" +
+            "'editorLink.activeForeground':'#FF79C6'}});window.__gxDracula=4;}" +
+            // Output do build: o tema não colore os tokens custom-* do OutputPane.html (tudo saía branco).
+            // Tokenizer próprio na frente dos regex do GeneXus: Success verde, Failed/error vermelho.
+            "if(!window.__gxdrTok){window.__gxdrTok=1;var gxArgs=null;" +
+            "var reg=function(){var r=[[/^\\s*(Success|Succeeded)\\b.*/,'gxdr-success'],[/^\\s*(Failed|Error|error)\\b.*|.*\\b(failed|error \\w+\\d+)\\b.*/,'custom-error']," +
+            "[/^\\s*[Ww]arning\\b.*/,'custom-warning'],[/^=+ .* (started|iniciad\\w*) =+.*/,'start-section']];" +
+            "if(gxArgs){r.push([new RegExp(gxArgs[0]),'custom-error'],[new RegExp(gxArgs[1]),'custom-warning'],[new RegExp(gxArgs[2]),'start-section'],[new RegExp(gxArgs[3]),'custom-infomsg']);}" +
+            "r.push([/\\[Running.*/,'custom-info']);monaco.languages.setMonarchTokensProvider('gxOutput',{tokenizer:{root:r}});};" +
+            "window.RegisterOutputMessagesToken=function(){gxArgs=arguments;reg();};reg();}" +
             "monaco.editor.setTheme('gx-dracula');document.body.style.background='#282A36';" +
             // Medido no Output: o OutputPane.html põe border-left 1px #EEEEEE no minimap (linha clara vertical).
             // Links do Output (registerLinkProvider) saíam azul-escuro, ilegíveis no fundo Dracula.
